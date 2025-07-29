@@ -9,6 +9,7 @@ import {
   Withdraw,
   WithdrawAll,
   PeriodTimeSet,
+  EmployeeList,
 } from "ponder:schema";
 
 const handleEvent = async (table: any, event: any, context: any, extraValues = {}) => {
@@ -23,6 +24,36 @@ const handleEvent = async (table: any, event: any, context: any, extraValues = {
     transactionHash: event.transaction.hash,
     ...extraValues,
   });
+};
+
+const updateEmployeeList = async (organization: string, employee: string, data: any, context: any, event: any) => {
+  const employeeId = `${organization}-${employee}`;
+  
+  const existingEmployee = await context.db.findFirst(EmployeeList).where({
+    id: employeeId
+  });
+  
+  if (existingEmployee) {
+    await context.db.update(EmployeeList).where({
+      id: employeeId
+    }).set({
+      ...data,
+      lastUpdated: event.block.timestamp,
+      lastTransaction: event.transaction.hash,
+    });
+  } else {
+    await context.db.insert(EmployeeList).values({
+      id: employeeId,
+      organization: organization,
+      employee: employee,
+      salary: BigInt(0),
+      status: false,
+      createdAt: event.block.timestamp,
+      lastUpdated: event.block.timestamp,
+      lastTransaction: event.transaction.hash,
+      ...data,
+    });
+  }
 };
 
 ponder.on("Factory:OrganizationCreated", async ({ event, context }) => {
@@ -59,6 +90,7 @@ ponder.on("Organization:EmployeeSalarySet", async ({ event, context }) => {
       salary: event.args.salary,
       timestamp: event.args.timestamp,
     });
+    await updateEmployeeList(event.log.address, event.args.employee, { salary: event.args.salary }, context, event);
   } catch (error) {
     throw error;
   }
@@ -71,6 +103,7 @@ ponder.on("Organization:EmployeeStatusChanged", async ({ event, context }) => {
       employee: event.args.employee,
       status: event.args.status,
     });
+    await updateEmployeeList(event.log.address, event.args.employee, { status: event.args.status }, context, event);
   } catch (error) {
     throw error;
   }

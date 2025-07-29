@@ -83,3 +83,14 @@ export const PeriodTimeSet = onchainTable("PeriodTimeSet", (t) => ({
   blockTimestamp: t.integer(),
   transactionHash: t.text(),
 }));
+
+export const EmployeeList = onchainTable("EmployeeList", (t) => ({
+  id: t.text().primaryKey(),
+  organization: t.text(),
+  employee: t.text(),
+  salary: t.bigint(),
+  status: t.boolean(),
+  createdAt: t.integer(),
+  lastUpdated: t.integer(),
+  lastTransaction: t.text(),
+}));
