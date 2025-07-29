@@ -28,20 +28,9 @@ const handleEvent = async (table: any, event: any, context: any, extraValues = {
 
 const updateEmployeeList = async (organization: string, employee: string, data: any, context: any, event: any) => {
   const employeeId = `${organization}-${employee}`;
-  
-  const existingEmployee = await context.db.findFirst(EmployeeList).where({
-    id: employeeId
-  });
-  
-  if (existingEmployee) {
-    await context.db.update(EmployeeList).where({
-      id: employeeId
-    }).set({
-      ...data,
-      lastUpdated: event.block.timestamp,
-      lastTransaction: event.transaction.hash,
-    });
-  } else {
+
+  try {
+
     await context.db.insert(EmployeeList).values({
       id: employeeId,
       organization: organization,
@@ -53,6 +42,8 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
       lastTransaction: event.transaction.hash,
       ...data,
     });
+  } catch (error) {
+    throw error;
   }
 };
 
