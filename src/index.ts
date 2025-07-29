@@ -10,6 +10,7 @@ import {
   WithdrawAll,
   PeriodTimeSet,
   EmployeeList,
+  OrganizationList,
 } from "ponder:schema";
 
 const handleEvent = async (table: any, event: any, context: any, extraValues = {}) => {
@@ -30,18 +31,115 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
   const employeeId = `${organization}-${employee}`;
 
   try {
+    const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
+    
+    if (existingEmployee) {
+      await context.db.update(EmployeeList, { id: employeeId }).set({
+        lastUpdated: event.block.timestamp,
+        lastTransaction: event.transaction.hash,
+        ...data,
+      });
+    } else {
+      await context.db.insert(EmployeeList).values({
+        id: employeeId,
+        organization: organization,
+        employee: employee,
+        salary: BigInt(0),
+        status: false,
+        createdAt: event.block.timestamp,
+        lastUpdated: event.block.timestamp,
+        lastTransaction: event.transaction.hash,
+        ...data,
+      });
+      
+      await incrementOrganizationCounter(organization, 'totalEmployees', context, event);
+    }
+    
+    if (data.status !== undefined) {
+      const wasActive = existingEmployee ? existingEmployee.status : false;
+      const isActive = data.status;
+      
+      if (!wasActive && isActive) {
+        await incrementOrganizationCounter(organization, 'activeEmployees', context, event);
+      } else if (wasActive && !isActive) {
+        await decrementOrganizationCounter(organization, 'activeEmployees', context, event);
+      }
+    }
+  } catch (error) {
+    throw error;
+  }
+};
 
-    await context.db.insert(EmployeeList).values({
-      id: employeeId,
-      organization: organization,
-      employee: employee,
-      salary: BigInt(0),
-      status: false,
-      createdAt: event.block.timestamp,
-      lastUpdated: event.block.timestamp,
-      lastTransaction: event.transaction.hash,
-      ...data,
-    });
+const updateOrganizationList = async (organization: string, data: any, context: any, event: any) => {
+  try {
+    const existing = await context.db.find(OrganizationList, { id: organization });
+    
+    if (existing) {
+      await context.db.update(OrganizationList, { id: organization }).set({
+        lastUpdated: event.block.timestamp,
+        lastTransaction: event.transaction.hash,
+        ...data,
+      });
+    } else {
+      await context.db.insert(OrganizationList).values({
+        id: organization,
+        organization: organization,
+        owner: "",
+        token: "",
+        periodTime: BigInt(0),
+        totalEmployees: 0,
+        activeEmployees: 0,
+        totalDeposits: BigInt(0),
+        totalWithdrawals: BigInt(0),
+        countDeposits: 0,
+        countWithdraws: 0,
+        createdAt: event.block.timestamp,
+        lastUpdated: event.block.timestamp,
+        lastTransaction: event.transaction.hash,
+        ...data,
+      });
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+const incrementOrganizationCounter = async (organization: string, field: string, context: any, event: any) => {
+  try {
+    const existing = await context.db.find(OrganizationList, { id: organization });
+    if (existing) {
+      const currentValue = existing[field] || 0;
+      await context.db.update(OrganizationList, { id: organization }).set({
+        [field]: currentValue + 1,
+        lastUpdated: event.block.timestamp,
+        lastTransaction: event.transaction.hash,
+      });
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+const decrementOrganizationCounter = async (organization: string, field: string, context: any, event: any) => {
+  try {
+    const existing = await context.db.find(OrganizationList, { id: organization });
+    if (existing) {
+      const currentValue = existing[field] || 0;
+      await context.db.update(OrganizationList, { id: organization }).set({
+        [field]: Math.max(0, currentValue - 1),
+        lastUpdated: event.block.timestamp,
+        lastTransaction: event.transaction.hash,
+      });
+    }
+  } catch (error) {
+    throw error;
+  }
+};
+
+const updateEmployeeCounts = async (organization: string, context: any, event: any) => {
+  try {
+    await updateOrganizationList(organization, {
+    }, context, event);
   } catch (error) {
     throw error;
   }
@@ -54,6 +152,11 @@ ponder.on("Factory:OrganizationCreated", async ({ event, context }) => {
       organization: event.args.organization,
       token: event.args.token,
     });
+    
+    await updateOrganizationList(event.args.organization, {
+      owner: event.args.owner,
+      token: event.args.token,
+    }, context, event);
   } catch (error) {
     throw error;
   }
@@ -82,6 +185,8 @@ ponder.on("Organization:EmployeeSalarySet", async ({ event, context }) => {
       timestamp: event.args.timestamp,
     });
     await updateEmployeeList(event.log.address, event.args.employee, { salary: event.args.salary }, context, event);
+    
+    await updateEmployeeCounts(event.log.address, context, event);
   } catch (error) {
     throw error;
   }
@@ -95,6 +200,8 @@ ponder.on("Organization:EmployeeStatusChanged", async ({ event, context }) => {
       status: event.args.status,
     });
     await updateEmployeeList(event.log.address, event.args.employee, { status: event.args.status }, context, event);
+    
+    await updateEmployeeCounts(event.log.address, context, event);
   } catch (error) {
     throw error;
   }
@@ -107,6 +214,16 @@ ponder.on("Organization:Deposit", async ({ event, context }) => {
       owner: event.args.owner,
       amount: event.args.amount,
     });
+    
+    const existing = await context.db.find(OrganizationList, { id: event.log.address });
+    if (existing) {
+      const newTotalDeposits = (existing.totalDeposits || BigInt(0)) + event.args.amount;
+      await updateOrganizationList(event.log.address, {
+        totalDeposits: newTotalDeposits,
+      }, context, event);
+    }
+    
+    await incrementOrganizationCounter(event.log.address, 'countDeposits', context, event);
   } catch (error) {
     throw error;
   }
@@ -120,6 +237,16 @@ ponder.on("Organization:Withdraw", async ({ event, context }) => {
       amount: event.args.amount,
       isOfframp: event.args.isOfframp,
     });
+    
+    const existing = await context.db.find(OrganizationList, { id: event.log.address });
+    if (existing) {
+      const newTotalWithdrawals = (existing.totalWithdrawals || BigInt(0)) + event.args.amount;
+      await updateOrganizationList(event.log.address, {
+        totalWithdrawals: newTotalWithdrawals,
+      }, context, event);
+    }
+    
+    await incrementOrganizationCounter(event.log.address, 'countWithdraws', context, event);
   } catch (error) {
     throw error;
   }
@@ -133,6 +260,16 @@ ponder.on("Organization:WithdrawAll", async ({ event, context }) => {
       amount: event.args.amount,
       isOfframp: event.args.isOfframp,
     });
+    
+    const existing = await context.db.find(OrganizationList, { id: event.log.address });
+    if (existing) {
+      const newTotalWithdrawals = (existing.totalWithdrawals || BigInt(0)) + event.args.amount;
+      await updateOrganizationList(event.log.address, {
+        totalWithdrawals: newTotalWithdrawals,
+      }, context, event);
+    }
+    
+    await incrementOrganizationCounter(event.log.address, 'countWithdraws', context, event);
   } catch (error) {
     throw error;
   }
@@ -144,6 +281,10 @@ ponder.on("Organization:PeriodTimeSet", async ({ event, context }) => {
       organization: event.log.address,
       periodTime: event.args.periodTime,
     });
+    
+    await updateOrganizationList(event.log.address, {
+      periodTime: event.args.periodTime,
+    }, context, event);
   } catch (error) {
     throw error;
   }

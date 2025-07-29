@@ -1,5 +1,5 @@
 import { createConfig, factory } from "ponder";
-import { http } from "viem";
+import { http, fallback } from "viem";
 import { FactoryABI } from "./abis/factory.abi";
 import { OrganizationABI } from "./abis/organization.abi";
 
@@ -11,8 +11,18 @@ export default createConfig({
   networks: {
     etherlinkTestnet: {
       chainId: 128123,
-      transport: http(process.env.PONDER_RPC_URL_1),
-      maxRequestsPerSecond: 5
+      transport: fallback([
+        http(process.env.PONDER_RPC_URL_1, {
+          retryCount: 2,
+          retryDelay: 1000,
+        }),
+        http(process.env.PONDER_RPC_URL_2, {
+          retryCount: 2,
+          retryDelay: 1000,
+        }),
+      ]),
+      maxRequestsPerSecond: 3,
+      pollingInterval: 2000,
     },
   },
   contracts: {
@@ -20,7 +30,7 @@ export default createConfig({
       network: "etherlinkTestnet",
       abi: FactoryABI,
       address: "0x1781b6507a626Eb1385703c7ce2008F795f1EA63",
-      startBlock: 20807736,
+      startBlock: 20807897,
     },
     Organization: {
       network: "etherlinkTestnet",
