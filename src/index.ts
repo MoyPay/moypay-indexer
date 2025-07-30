@@ -11,6 +11,7 @@ import {
   PeriodTimeSet,
   EmployeeList,
   OrganizationList,
+  OrganizationJoinedList,
 } from "ponder:schema";
 
 const handleEvent = async (table: any, event: any, context: any, extraValues = {}) => {
@@ -180,7 +181,7 @@ const recalculateOrganizationMetrics = async (organization: string, context: any
     const totalDeposits = existing.totalDeposits ? BigInt(existing.totalDeposits) : BigInt(0);
     const totalWithdrawals = existing.totalWithdrawals ? BigInt(existing.totalWithdrawals) : BigInt(0);
     const currentBalance = totalDeposits - totalWithdrawals;
-    
+
     const shortfall = totalSalary > currentBalance ? totalSalary - currentBalance : BigInt(0);
 
     await updateOrganizationList(organization, {
@@ -196,6 +197,49 @@ const recalculateOrganizationMetrics = async (organization: string, context: any
 const updateEmployeeCounts = async (organization: string, context: any, event: any) => {
   try {
     await recalculateOrganizationMetrics(organization, context, event);
+  } catch (error) {
+    throw error;
+  }
+};
+
+const updateOrganizationJoinedList = async (employee: string, organization: string, context: any, event: any) => {
+  try {
+    const joinedId = `${employee}-${organization}`;
+
+    const orgData = await context.db.find(OrganizationList, { id: organization });
+
+    if (orgData) {
+      const existing = await context.db.find(OrganizationJoinedList, { id: joinedId });
+
+      const joinedData = {
+        employee: employee,
+        organization: organization,
+        owner: orgData.owner,
+        token: orgData.token,
+        periodTime: orgData.periodTime,
+        totalEmployees: orgData.totalEmployees,
+        activeEmployees: orgData.activeEmployees,
+        totalDeposits: orgData.totalDeposits,
+        totalWithdrawals: orgData.totalWithdrawals,
+        countDeposits: orgData.countDeposits,
+        countWithdraws: orgData.countWithdraws,
+        totalSalary: orgData.totalSalary,
+        currentBalance: orgData.currentBalance,
+        shortfall: orgData.shortfall,
+        lastUpdated: event.block.timestamp,
+        lastTransaction: event.transaction.hash,
+      };
+
+      if (existing) {
+        await context.db.update(OrganizationJoinedList, { id: joinedId }).set(joinedData);
+      } else {
+        await context.db.insert(OrganizationJoinedList).values({
+          id: joinedId,
+          createdAt: event.block.timestamp,
+          ...joinedData,
+        });
+      }
+    }
   } catch (error) {
     throw error;
   }
@@ -243,6 +287,7 @@ ponder.on("Organization:EmployeeSalarySet", async ({ event, context }) => {
     await updateEmployeeList(event.log.address, event.args.employee, { salary: event.args.salary }, context, event);
 
     await updateEmployeeCounts(event.log.address, context, event);
+    await updateOrganizationJoinedList(event.args.employee, event.log.address, context, event);
   } catch (error) {
     throw error;
   }
@@ -258,6 +303,7 @@ ponder.on("Organization:EmployeeStatusChanged", async ({ event, context }) => {
     await updateEmployeeList(event.log.address, event.args.employee, { status: event.args.status }, context, event);
 
     await updateEmployeeCounts(event.log.address, context, event);
+    await updateOrganizationJoinedList(event.args.employee, event.log.address, context, event);
   } catch (error) {
     throw error;
   }

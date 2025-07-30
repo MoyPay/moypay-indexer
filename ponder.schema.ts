@@ -114,3 +114,24 @@ export const OrganizationList = onchainTable("OrganizationList", (t) => ({
   lastUpdated: t.integer(),
   lastTransaction: t.text(),
 }));
+
+export const OrganizationJoinedList = onchainTable("OrganizationJoinedList", (t) => ({
+  id: t.text().primaryKey(),
+  employee: t.text(),
+  organization: t.text(),
+  owner: t.text(),
+  token: t.text(),
+  periodTime: t.bigint(),
+  totalEmployees: t.integer(),
+  activeEmployees: t.integer(),
+  totalDeposits: t.bigint(),
+  totalWithdrawals: t.bigint(),
+  countDeposits: t.integer(),
+  countWithdraws: t.integer(),
+  totalSalary: t.bigint(),
+  currentBalance: t.bigint(),
+  shortfall: t.bigint(),
+  createdAt: t.integer(),
+  lastUpdated: t.integer(),
+  lastTransaction: t.text(),
+}));
