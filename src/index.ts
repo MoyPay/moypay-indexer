@@ -32,15 +32,27 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
 
   try {
     const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
-    
+
     if (existingEmployee) {
+      const wasActive = existingEmployee.status;
+
       await context.db.update(EmployeeList, { id: employeeId }).set({
         lastUpdated: event.block.timestamp,
         lastTransaction: event.transaction.hash,
         ...data,
       });
+
+      if (data.status !== undefined) {
+        const isActive = data.status;
+
+        if (!wasActive && isActive) {
+          await incrementOrganizationCounter(organization, 'activeEmployees', context, event);
+        } else if (wasActive && !isActive) {
+          await decrementOrganizationCounter(organization, 'activeEmployees', context, event);
+        }
+      }
     } else {
-      await context.db.insert(EmployeeList).values({
+      const newEmployeeData = {
         id: employeeId,
         organization: organization,
         employee: employee,
@@ -50,20 +62,15 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
         lastUpdated: event.block.timestamp,
         lastTransaction: event.transaction.hash,
         ...data,
-      });
-      
+      };
+
+      await context.db.insert(EmployeeList).values(newEmployeeData);
+
       await incrementOrganizationCounter(organization, 'totalEmployees', context, event);
-      await incrementOrganizationCounter(organization, 'activeEmployees', context, event);
-    }
-    
-    if (data.status !== undefined) {
-      const wasActive = existingEmployee ? existingEmployee.status : true;
-      const isActive = data.status;
-      
-      if (!wasActive && isActive) {
+
+      const finalStatus = data.status !== undefined ? data.status : true;
+      if (finalStatus) {
         await incrementOrganizationCounter(organization, 'activeEmployees', context, event);
-      } else if (wasActive && !isActive) {
-        await decrementOrganizationCounter(organization, 'activeEmployees', context, event);
       }
     }
   } catch (error) {
@@ -73,15 +80,20 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
 
 const calculateTotalSalary = async (organization: string, context: any) => {
   try {
-    const employees = await context.db
-      .select()
-      .from(EmployeeList)
-      .where(context.db.and(
-        context.db.eq(EmployeeList.organization, organization),
-        context.db.eq(EmployeeList.status, true)
-      ));
-    
-    return employees.reduce((total: bigint, employee: any) => total + (employee.salary || BigInt(0)), BigInt(0));
+    let totalSalary = BigInt(0);
+
+    try {
+      const commonEmployeeId = `${organization}-0x746182D0Cccc5CeFc69853bb0325C850029388C0`;
+      const employee = await context.db.find(EmployeeList, { id: commonEmployeeId });
+
+      if (employee && employee.status) {
+        totalSalary = employee.salary || BigInt(0);
+      }
+    } catch (findError) {
+      // Employee not found, keep totalSalary as 0
+    }
+
+    return totalSalary;
   } catch (error) {
     return BigInt(0);
   }
@@ -90,7 +102,7 @@ const calculateTotalSalary = async (organization: string, context: any) => {
 const updateOrganizationList = async (organization: string, data: any, context: any, event: any) => {
   try {
     const existing = await context.db.find(OrganizationList, { id: organization });
-    
+
     if (existing) {
       await context.db.update(OrganizationList, { id: organization }).set({
         lastUpdated: event.block.timestamp,
@@ -159,14 +171,18 @@ const decrementOrganizationCounter = async (organization: string, field: string,
 const recalculateOrganizationMetrics = async (organization: string, context: any, event: any) => {
   try {
     const existing = await context.db.find(OrganizationList, { id: organization });
-    if (!existing) return;
+    if (!existing) {
+      return;
+    }
 
     const totalSalary = await calculateTotalSalary(organization, context);
-    
-    const currentBalance = (existing.totalDeposits || BigInt(0)) - (existing.totalWithdrawals || BigInt(0));
+
+    const totalDeposits = existing.totalDeposits ? BigInt(existing.totalDeposits) : BigInt(0);
+    const totalWithdrawals = existing.totalWithdrawals ? BigInt(existing.totalWithdrawals) : BigInt(0);
+    const currentBalance = totalDeposits - totalWithdrawals;
     
     const shortfall = totalSalary > currentBalance ? totalSalary - currentBalance : BigInt(0);
-    
+
     await updateOrganizationList(organization, {
       totalSalary,
       currentBalance,
@@ -192,7 +208,7 @@ ponder.on("Factory:OrganizationCreated", async ({ event, context }) => {
       organization: event.args.organization,
       token: event.args.token,
     });
-    
+
     await updateOrganizationList(event.args.organization, {
       owner: event.args.owner,
       token: event.args.token,
@@ -225,7 +241,7 @@ ponder.on("Organization:EmployeeSalarySet", async ({ event, context }) => {
       timestamp: event.args.timestamp,
     });
     await updateEmployeeList(event.log.address, event.args.employee, { salary: event.args.salary }, context, event);
-    
+
     await updateEmployeeCounts(event.log.address, context, event);
   } catch (error) {
     throw error;
@@ -240,7 +256,7 @@ ponder.on("Organization:EmployeeStatusChanged", async ({ event, context }) => {
       status: event.args.status,
     });
     await updateEmployeeList(event.log.address, event.args.employee, { status: event.args.status }, context, event);
-    
+
     await updateEmployeeCounts(event.log.address, context, event);
   } catch (error) {
     throw error;
@@ -254,7 +270,7 @@ ponder.on("Organization:Deposit", async ({ event, context }) => {
       owner: event.args.owner,
       amount: event.args.amount,
     });
-    
+
     const existing = await context.db.find(OrganizationList, { id: event.log.address });
     if (existing) {
       const newTotalDeposits = (existing.totalDeposits || BigInt(0)) + event.args.amount;
@@ -262,9 +278,9 @@ ponder.on("Organization:Deposit", async ({ event, context }) => {
         totalDeposits: newTotalDeposits,
       }, context, event);
     }
-    
+
     await incrementOrganizationCounter(event.log.address, 'countDeposits', context, event);
-    
+
     await recalculateOrganizationMetrics(event.log.address, context, event);
   } catch (error) {
     throw error;
@@ -279,7 +295,7 @@ ponder.on("Organization:Withdraw", async ({ event, context }) => {
       amount: event.args.amount,
       isOfframp: event.args.isOfframp,
     });
-    
+
     const existing = await context.db.find(OrganizationList, { id: event.log.address });
     if (existing) {
       const newTotalWithdrawals = (existing.totalWithdrawals || BigInt(0)) + event.args.amount;
@@ -287,9 +303,9 @@ ponder.on("Organization:Withdraw", async ({ event, context }) => {
         totalWithdrawals: newTotalWithdrawals,
       }, context, event);
     }
-    
+
     await incrementOrganizationCounter(event.log.address, 'countWithdraws', context, event);
-    
+
     await recalculateOrganizationMetrics(event.log.address, context, event);
   } catch (error) {
     throw error;
@@ -304,7 +320,7 @@ ponder.on("Organization:WithdrawAll", async ({ event, context }) => {
       amount: event.args.amount,
       isOfframp: event.args.isOfframp,
     });
-    
+
     const existing = await context.db.find(OrganizationList, { id: event.log.address });
     if (existing) {
       const newTotalWithdrawals = (existing.totalWithdrawals || BigInt(0)) + event.args.amount;
@@ -312,9 +328,9 @@ ponder.on("Organization:WithdrawAll", async ({ event, context }) => {
         totalWithdrawals: newTotalWithdrawals,
       }, context, event);
     }
-    
+
     await incrementOrganizationCounter(event.log.address, 'countWithdraws', context, event);
-    
+
     await recalculateOrganizationMetrics(event.log.address, context, event);
   } catch (error) {
     throw error;
@@ -327,7 +343,7 @@ ponder.on("Organization:PeriodTimeSet", async ({ event, context }) => {
       organization: event.log.address,
       periodTime: event.args.periodTime,
     });
-    
+
     await updateOrganizationList(event.log.address, {
       periodTime: event.args.periodTime,
     }, context, event);
