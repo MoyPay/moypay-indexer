@@ -45,7 +45,7 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
         organization: organization,
         employee: employee,
         salary: BigInt(0),
-        status: false,
+        status: true,
         createdAt: event.block.timestamp,
         lastUpdated: event.block.timestamp,
         lastTransaction: event.transaction.hash,
@@ -53,10 +53,11 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
       });
       
       await incrementOrganizationCounter(organization, 'totalEmployees', context, event);
+      await incrementOrganizationCounter(organization, 'activeEmployees', context, event);
     }
     
     if (data.status !== undefined) {
-      const wasActive = existingEmployee ? existingEmployee.status : false;
+      const wasActive = existingEmployee ? existingEmployee.status : true;
       const isActive = data.status;
       
       if (!wasActive && isActive) {
@@ -67,6 +68,22 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
     }
   } catch (error) {
     throw error;
+  }
+};
+
+const calculateTotalSalary = async (organization: string, context: any) => {
+  try {
+    const employees = await context.db
+      .select()
+      .from(EmployeeList)
+      .where(context.db.and(
+        context.db.eq(EmployeeList.organization, organization),
+        context.db.eq(EmployeeList.status, true)
+      ));
+    
+    return employees.reduce((total: bigint, employee: any) => total + (employee.salary || BigInt(0)), BigInt(0));
+  } catch (error) {
+    return BigInt(0);
   }
 };
 
@@ -93,6 +110,9 @@ const updateOrganizationList = async (organization: string, data: any, context: 
         totalWithdrawals: BigInt(0),
         countDeposits: 0,
         countWithdraws: 0,
+        totalSalary: BigInt(0),
+        currentBalance: BigInt(0),
+        shortfall: BigInt(0),
         createdAt: event.block.timestamp,
         lastUpdated: event.block.timestamp,
         lastTransaction: event.transaction.hash,
@@ -136,10 +156,30 @@ const decrementOrganizationCounter = async (organization: string, field: string,
   }
 };
 
+const recalculateOrganizationMetrics = async (organization: string, context: any, event: any) => {
+  try {
+    const existing = await context.db.find(OrganizationList, { id: organization });
+    if (!existing) return;
+
+    const totalSalary = await calculateTotalSalary(organization, context);
+    
+    const currentBalance = (existing.totalDeposits || BigInt(0)) - (existing.totalWithdrawals || BigInt(0));
+    
+    const shortfall = totalSalary > currentBalance ? totalSalary - currentBalance : BigInt(0);
+    
+    await updateOrganizationList(organization, {
+      totalSalary,
+      currentBalance,
+      shortfall,
+    }, context, event);
+  } catch (error) {
+    throw error;
+  }
+};
+
 const updateEmployeeCounts = async (organization: string, context: any, event: any) => {
   try {
-    await updateOrganizationList(organization, {
-    }, context, event);
+    await recalculateOrganizationMetrics(organization, context, event);
   } catch (error) {
     throw error;
   }
@@ -224,6 +264,8 @@ ponder.on("Organization:Deposit", async ({ event, context }) => {
     }
     
     await incrementOrganizationCounter(event.log.address, 'countDeposits', context, event);
+    
+    await recalculateOrganizationMetrics(event.log.address, context, event);
   } catch (error) {
     throw error;
   }
@@ -247,6 +289,8 @@ ponder.on("Organization:Withdraw", async ({ event, context }) => {
     }
     
     await incrementOrganizationCounter(event.log.address, 'countWithdraws', context, event);
+    
+    await recalculateOrganizationMetrics(event.log.address, context, event);
   } catch (error) {
     throw error;
   }
@@ -270,6 +314,8 @@ ponder.on("Organization:WithdrawAll", async ({ event, context }) => {
     }
     
     await incrementOrganizationCounter(event.log.address, 'countWithdraws', context, event);
+    
+    await recalculateOrganizationMetrics(event.log.address, context, event);
   } catch (error) {
     throw error;
   }
