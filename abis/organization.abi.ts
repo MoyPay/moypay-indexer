@@ -15,6 +15,11 @@ export const OrganizationABI = [
         "internalType": "address",
         "name": "_owner",
         "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
       }
     ],
     "stateMutability": "nonpayable",
@@ -321,6 +326,19 @@ export const OrganizationABI = [
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "name",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
       }
     ],
     "stateMutability": "view",
