@@ -119,7 +119,7 @@ const updateOrganizationList = async (organization: string, data: any, context: 
         name: "",
         owner: "",
         token: "",
-        periodTime: BigInt(2629746),
+        periodTime: BigInt(2592000),
         totalEmployees: 0,
         activeEmployees: 0,
         totalDeposits: BigInt(0),
