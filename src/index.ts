@@ -3,11 +3,14 @@ import { createHash, randomBytes } from "crypto";
 import {
   OrganizationCreated,
   EarnSalary,
+  EmployeeSalaryAdded,
   EmployeeSalarySet,
   EmployeeStatusChanged,
   Deposit,
   Withdraw,
   WithdrawAll,
+  EnableAutoEarn,
+  DisableAutoEarn,
   PeriodTimeSet,
   SetName,
   EmployeeList,
@@ -287,12 +290,10 @@ ponder.on("Organization:EmployeeSalarySet", async ({ event, context }) => {
     await handleEvent(EmployeeSalarySet, event, context, {
       organization: event.log.address,
       employee: event.args.employee,
-      name: event.args.name,
       salary: event.args.salary,
-      timestamp: event.args.timestamp,
+      startStream: event.args.startStream,
     });
     await updateEmployeeList(event.log.address, event.args.employee, { 
-      name: event.args.name,
       salary: event.args.salary 
     }, context, event);
 
@@ -350,6 +351,7 @@ ponder.on("Organization:Withdraw", async ({ event, context }) => {
       employee: event.args.employee,
       amount: event.args.amount,
       isOfframp: event.args.isOfframp,
+      startStream: event.args.startStream,
     });
 
     const existing = await context.db.find(OrganizationList, { id: event.log.address });
@@ -375,6 +377,7 @@ ponder.on("Organization:WithdrawAll", async ({ event, context }) => {
       employee: event.args.employee,
       amount: event.args.amount,
       isOfframp: event.args.isOfframp,
+      startStream: event.args.startStream,
     });
 
     const existing = await context.db.find(OrganizationList, { id: event.log.address });
@@ -418,6 +421,55 @@ ponder.on("Organization:SetName", async ({ event, context }) => {
     await updateOrganizationList(event.log.address, {
       name: event.args.name,
     }, context, event);
+  } catch (error) {
+    throw error;
+  }
+});
+
+ponder.on("Organization:EmployeeSalaryAdded", async ({ event, context }) => {
+  try {
+    await handleEvent(EmployeeSalaryAdded, event, context, {
+      organization: event.log.address,
+      name: event.args.name,
+      employee: event.args.employee,
+      salary: event.args.salary,
+      startStream: event.args.startStream,
+      timestamp: event.args.timestamp,
+      isAutoEarn: event.args.isAutoEarn,
+    });
+    
+    await updateEmployeeList(event.log.address, event.args.employee, {
+      name: event.args.name,
+      salary: event.args.salary
+    }, context, event);
+
+    await updateEmployeeCounts(event.log.address, context, event);
+    await updateOrganizationJoinedList(event.args.employee, event.log.address, context, event);
+  } catch (error) {
+    throw error;
+  }
+});
+
+ponder.on("Organization:EnableAutoEarn", async ({ event, context }) => {
+  try {
+    await handleEvent(EnableAutoEarn, event, context, {
+      organization: event.log.address,
+      employee: event.args.employee,
+      protocol: event.args.protocol,
+      amount: event.args.amount,
+    });
+  } catch (error) {
+    throw error;
+  }
+});
+
+ponder.on("Organization:DisableAutoEarn", async ({ event, context }) => {
+  try {
+    await handleEvent(DisableAutoEarn, event, context, {
+      organization: event.log.address,
+      employee: event.args.employee,
+      protocol: event.args.protocol,
+    });
   } catch (error) {
     throw error;
   }

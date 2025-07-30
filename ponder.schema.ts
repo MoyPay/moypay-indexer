@@ -23,13 +23,26 @@ export const EarnSalary = onchainTable("EarnSalary", (t) => ({
   transactionHash: t.text(),
 }));
 
+export const EmployeeSalaryAdded = onchainTable("EmployeeSalaryAdded", (t) => ({
+  id: t.text().primaryKey(),
+  organization: t.text(),
+  name: t.text(),
+  employee: t.text(),
+  salary: t.bigint(),
+  startStream: t.bigint(),
+  timestamp: t.bigint(),
+  isAutoEarn: t.boolean(),
+  blockNumber: t.integer(),
+  blockTimestamp: t.integer(),
+  transactionHash: t.text(),
+}));
+
 export const EmployeeSalarySet = onchainTable("EmployeeSalarySet", (t) => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   employee: t.text(),
-  name: t.text(),
   salary: t.bigint(),
-  timestamp: t.integer(),
+  startStream: t.bigint(),
   blockNumber: t.integer(),
   blockTimestamp: t.integer(),
   transactionHash: t.text(),
@@ -61,6 +74,7 @@ export const Withdraw = onchainTable("Withdraw", (t) => ({
   employee: t.text(),
   amount: t.bigint(),
   isOfframp: t.boolean(),
+  startStream: t.bigint(),
   blockNumber: t.integer(),
   blockTimestamp: t.integer(),
   transactionHash: t.text(),
@@ -72,6 +86,28 @@ export const WithdrawAll = onchainTable("WithdrawAll", (t) => ({
   employee: t.text(),
   amount: t.bigint(),
   isOfframp: t.boolean(),
+  startStream: t.bigint(),
+  blockNumber: t.integer(),
+  blockTimestamp: t.integer(),
+  transactionHash: t.text(),
+}));
+
+export const EnableAutoEarn = onchainTable("EnableAutoEarn", (t) => ({
+  id: t.text().primaryKey(),
+  organization: t.text(),
+  employee: t.text(),
+  protocol: t.text(),
+  amount: t.bigint(),
+  blockNumber: t.integer(),
+  blockTimestamp: t.integer(),
+  transactionHash: t.text(),
+}));
+
+export const DisableAutoEarn = onchainTable("DisableAutoEarn", (t) => ({
+  id: t.text().primaryKey(),
+  organization: t.text(),
+  employee: t.text(),
+  protocol: t.text(),
   blockNumber: t.integer(),
   blockTimestamp: t.integer(),
   transactionHash: t.text(),
