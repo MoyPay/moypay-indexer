@@ -90,7 +90,7 @@ const calculateTotalSalary = async (organization: string, context: any) => {
         totalSalary = employee.salary || BigInt(0);
       }
     } catch (findError) {
-      // Employee not found, keep totalSalary as 0
+      throw findError;
     }
 
     return totalSalary;
@@ -115,7 +115,7 @@ const updateOrganizationList = async (organization: string, data: any, context: 
         organization: organization,
         owner: "",
         token: "",
-        periodTime: BigInt(0),
+        periodTime: BigInt(2629746),
         totalEmployees: 0,
         activeEmployees: 0,
         totalDeposits: BigInt(0),
