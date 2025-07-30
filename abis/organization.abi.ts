@@ -130,6 +130,12 @@ export const OrganizationABI = [
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
         "indexed": true,
         "internalType": "address",
         "name": "employee",
@@ -181,6 +187,19 @@ export const OrganizationABI = [
       }
     ],
     "name": "PeriodTimeSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "SetName",
     "type": "event"
   },
   {
@@ -281,6 +300,11 @@ export const OrganizationABI = [
     "name": "employeeSalary",
     "outputs": [
       {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
         "internalType": "uint256",
         "name": "salary",
         "type": "uint256"
@@ -373,6 +397,11 @@ export const OrganizationABI = [
   {
     "inputs": [
       {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      },
+      {
         "internalType": "address",
         "name": "_employee",
         "type": "address"
@@ -402,6 +431,19 @@ export const OrganizationABI = [
       }
     ],
     "name": "setEmployeeStatus",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      }
+    ],
+    "name": "setName",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

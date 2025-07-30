@@ -4,6 +4,7 @@ export const OrganizationCreated = onchainTable("OrganizationCreated", (t) => ({
   id: t.text().primaryKey(),
   owner: t.text(),
   organization: t.text(),
+  name: t.text(),
   token: t.text(),
   blockNumber: t.integer(),
   blockTimestamp: t.integer(),
@@ -26,6 +27,7 @@ export const EmployeeSalarySet = onchainTable("EmployeeSalarySet", (t) => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   employee: t.text(),
+  name: t.text(),
   salary: t.bigint(),
   timestamp: t.integer(),
   blockNumber: t.integer(),
@@ -84,10 +86,20 @@ export const PeriodTimeSet = onchainTable("PeriodTimeSet", (t) => ({
   transactionHash: t.text(),
 }));
 
+export const SetName = onchainTable("SetName", (t) => ({
+  id: t.text().primaryKey(),
+  organization: t.text(),
+  name: t.text(),
+  blockNumber: t.integer(),
+  blockTimestamp: t.integer(),
+  transactionHash: t.text(),
+}));
+
 export const EmployeeList = onchainTable("EmployeeList", (t) => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   employee: t.text(),
+  name: t.text(),
   salary: t.bigint(),
   status: t.boolean(),
   createdAt: t.integer(),
@@ -98,6 +110,7 @@ export const EmployeeList = onchainTable("EmployeeList", (t) => ({
 export const OrganizationList = onchainTable("OrganizationList", (t) => ({
   id: t.text().primaryKey(),
   organization: t.text(),
+  name: t.text(),
   owner: t.text(),
   token: t.text(),
   periodTime: t.bigint(),
@@ -119,6 +132,7 @@ export const OrganizationJoinedList = onchainTable("OrganizationJoinedList", (t)
   id: t.text().primaryKey(),
   employee: t.text(),
   organization: t.text(),
+  name: t.text(),
   owner: t.text(),
   token: t.text(),
   periodTime: t.bigint(),

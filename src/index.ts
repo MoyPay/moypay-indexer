@@ -9,6 +9,7 @@ import {
   Withdraw,
   WithdrawAll,
   PeriodTimeSet,
+  SetName,
   EmployeeList,
   OrganizationList,
   OrganizationJoinedList,
@@ -57,6 +58,7 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
         id: employeeId,
         organization: organization,
         employee: employee,
+        name: "",
         salary: BigInt(0),
         status: true,
         createdAt: event.block.timestamp,
@@ -114,6 +116,7 @@ const updateOrganizationList = async (organization: string, data: any, context: 
       await context.db.insert(OrganizationList).values({
         id: organization,
         organization: organization,
+        name: "",
         owner: "",
         token: "",
         periodTime: BigInt(2629746),
@@ -214,6 +217,7 @@ const updateOrganizationJoinedList = async (employee: string, organization: stri
       const joinedData = {
         employee: employee,
         organization: organization,
+        name: orgData.name,
         owner: orgData.owner,
         token: orgData.token,
         periodTime: orgData.periodTime,
@@ -250,11 +254,13 @@ ponder.on("Factory:OrganizationCreated", async ({ event, context }) => {
     await handleEvent(OrganizationCreated, event, context, {
       owner: event.args.owner,
       organization: event.args.organization,
+      name: event.args.name,
       token: event.args.token,
     });
 
     await updateOrganizationList(event.args.organization, {
       owner: event.args.owner,
+      name: event.args.name,
       token: event.args.token,
     }, context, event);
   } catch (error) {
@@ -281,10 +287,14 @@ ponder.on("Organization:EmployeeSalarySet", async ({ event, context }) => {
     await handleEvent(EmployeeSalarySet, event, context, {
       organization: event.log.address,
       employee: event.args.employee,
+      name: event.args.name,
       salary: event.args.salary,
       timestamp: event.args.timestamp,
     });
-    await updateEmployeeList(event.log.address, event.args.employee, { salary: event.args.salary }, context, event);
+    await updateEmployeeList(event.log.address, event.args.employee, { 
+      name: event.args.name,
+      salary: event.args.salary 
+    }, context, event);
 
     await updateEmployeeCounts(event.log.address, context, event);
     await updateOrganizationJoinedList(event.args.employee, event.log.address, context, event);
@@ -392,6 +402,21 @@ ponder.on("Organization:PeriodTimeSet", async ({ event, context }) => {
 
     await updateOrganizationList(event.log.address, {
       periodTime: event.args.periodTime,
+    }, context, event);
+  } catch (error) {
+    throw error;
+  }
+});
+
+ponder.on("Organization:SetName", async ({ event, context }) => {
+  try {
+    await handleEvent(SetName, event, context, {
+      organization: event.log.address,
+      name: event.args.name,
+    });
+
+    await updateOrganizationList(event.log.address, {
+      name: event.args.name,
     }, context, event);
   } catch (error) {
     throw error;

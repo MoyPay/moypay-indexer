@@ -63,6 +63,12 @@ export const FactoryABI = [
         "internalType": "address",
         "name": "token",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
       }
     ],
     "name": "OrganizationCreated",

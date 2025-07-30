@@ -29,18 +29,18 @@ export default createConfig({
     Factory: {
       network: "etherlinkTestnet",
       abi: FactoryABI,
-      address: "0xeF323bcBE6bb509F0b6F89b06fc7a17a012515E4",
-      startBlock: 20819946,
+      address: "0x78f983a5071762bC7c5C3f8dF9BB3D48EC0B0d36",
+      startBlock: 20820521,
     },
     Organization: {
       network: "etherlinkTestnet",
       abi: OrganizationABI,
       address: factory({
-        address: "0xeF323bcBE6bb509F0b6F89b06fc7a17a012515E4",
+        address: "0x78f983a5071762bC7c5C3f8dF9BB3D48EC0B0d36",
         event: FactoryABI.find(item => item.type === "event" && item.name === "OrganizationCreated")!,
         parameter: "organization",
       }),
-      startBlock: 20819946,
+      startBlock: 20820521,
     },
   },
 });
