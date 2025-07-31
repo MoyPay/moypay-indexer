@@ -123,25 +123,6 @@ const calculateCurrentSalaryBalance = async (
   }
 };
 
-const calculateUnclaimedSalary = async (
-  organization: string,
-  employee: string,
-  context: any,
-  event: any
-) => {
-  try {
-    const balanceData = await calculateCurrentSalaryBalance(
-      organization,
-      employee,
-      context,
-      event
-    );
-    return balanceData.currentBalance;
-  } catch (error) {
-    return BigInt(0);
-  }
-};
-
 const updateEmployeeSalaryBalance = async (
   organization: string,
   employee: string,
@@ -207,7 +188,6 @@ const updateEmployeeList = async (
 
     if (existingEmployee) {
       const wasActive = existingEmployee.status;
-      const wasStreamingActive = existingEmployee.streamingActive;
 
       if (existingEmployee.streamingActive) {
         await updateEmployeeSalaryBalance(
