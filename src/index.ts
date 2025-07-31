@@ -113,12 +113,12 @@ const updateEmployeeSalaryBalance = async (organization: string, employee: strin
       
       await context.db.update(EmployeeList, { id: employeeId }).set({
         currentSalaryBalance: balanceData.currentBalance,
-        salaryBalanceTimestamp: event.block.timestamp,
+        salaryBalanceTimestamp: Number(event.block.timestamp),
         salaryPerSecond: balanceData.salaryPerSecond,
         totalEarned: balanceData.totalEarned,
         availableBalance: availableBalance > BigInt(0) ? availableBalance : BigInt(0),
-        lastBalanceUpdate: event.block.timestamp,
-        lastUpdated: event.block.timestamp,
+        lastBalanceUpdate: Number(event.block.timestamp),
+        lastUpdated: Number(event.block.timestamp),
         lastTransaction: event.transaction.hash,
       });
     }
@@ -566,9 +566,24 @@ ponder.on("Organization:WithdrawAll", async ({ event, context }) => {
 
     const employeeId = `${event.log.address}-${event.args.employee}`;
     const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
+    
     if (existingEmployee) {
+      // Update salary balance before processing withdrawal
+      if (existingEmployee.streamingActive) {
+        await updateEmployeeSalaryBalance(event.log.address, event.args.employee, context, event);
+      }
+      
+      // WithdrawAll should reset everything to 0
+      const newTotalWithdrawn = (existingEmployee.totalWithdrawn || BigInt(0)) + event.args.amount;
+      
       await context.db.update(EmployeeList, { id: employeeId }).set({
+        // Reset all balance tracking since everything is withdrawn
+        currentSalaryBalance: BigInt(0),
+        totalWithdrawn: newTotalWithdrawn,
+        availableBalance: BigInt(0),
         lastCompensationSalary: BigInt(0),
+        salaryBalanceTimestamp: Number(event.block.timestamp),
+        lastBalanceUpdate: Number(event.block.timestamp),
         lastUpdated: Number(event.block.timestamp),
         lastTransaction: event.transaction.hash,
       });
