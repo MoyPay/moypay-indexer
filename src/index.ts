@@ -93,8 +93,8 @@ const calculateCurrentSalaryBalance = async (
 
     const streamStartTime =
       existingEmployee.salaryStreamStartTime || existingEmployee.createdAt;
-    const currentTime = event.block.timestamp;
-    const timeElapsed = currentTime - streamStartTime;
+    const currentTime = Number(event.block.timestamp);
+    const timeElapsed = currentTime - Number(streamStartTime);
 
     const streamedEarnings = salaryPerSecond * BigInt(Math.max(0, timeElapsed));
 
@@ -265,10 +265,44 @@ const updateEmployeeList = async (
         ...data,
       });
 
+      if (data.salary !== undefined) {
+        const oldSalary = existingEmployee.salary || BigInt(0);
+        const newSalary = data.salary;
+        const existingOrgData = await context.db.find(OrganizationList, {
+          id: organization,
+        });
+        const currentTotalSalary = existingOrgData?.totalSalary || BigInt(0);
+
+        const salaryDifference = newSalary - oldSalary;
+        const newTotalSalary = currentTotalSalary + salaryDifference;
+
+        await updateOrganizationTotalSalary(
+          organization,
+          context,
+          event,
+          newTotalSalary,
+          false
+        );
+      }
+
       if (data.status !== undefined) {
         const isActive = data.status;
+        const employeeSalary = existingEmployee.salary || BigInt(0);
+        const existingOrgData = await context.db.find(OrganizationList, {
+          id: organization,
+        });
+        const currentTotalSalary = existingOrgData?.totalSalary || BigInt(0);
 
         if (!wasActive && isActive) {
+          const newTotalSalary = currentTotalSalary + employeeSalary;
+          await updateOrganizationTotalSalary(
+            organization,
+            context,
+            event,
+            newTotalSalary,
+            false
+          );
+
           await incrementOrganizationCounter(
             organization,
             "activeEmployees",
@@ -276,6 +310,15 @@ const updateEmployeeList = async (
             event
           );
         } else if (wasActive && !isActive) {
+          const newTotalSalary = currentTotalSalary - employeeSalary;
+          await updateOrganizationTotalSalary(
+            organization,
+            context,
+            event,
+            BigInt(newTotalSalary),
+            false
+          );
+
           await decrementOrganizationCounter(
             organization,
             "activeEmployees",
@@ -329,6 +372,21 @@ const updateEmployeeList = async (
           event
         );
       }
+
+      if (isActive && salary > BigInt(0)) {
+        const existingOrgData = await context.db.find(OrganizationList, {
+          id: organization,
+        });
+        const currentTotalSalary = existingOrgData?.totalSalary || BigInt(0);
+        const newTotalSalary = currentTotalSalary + salary;
+        await updateOrganizationTotalSalary(
+          organization,
+          context,
+          event,
+          newTotalSalary,
+          true
+        );
+      }
     }
   } catch (error) {
     throw error;
@@ -337,22 +395,15 @@ const updateEmployeeList = async (
 
 const calculateTotalSalary = async (organization: string, context: any) => {
   try {
-    let totalSalary = BigInt(0);
+    const existingOrg = await context.db.find(OrganizationList, {
+      id: organization,
+    });
 
-    try {
-      const allEmployees = await context.db.select().from(EmployeeList);
-      const employees = allEmployees.filter(
-        (emp: any) => emp.organization === organization && emp.status === true
-      );
-
-      for (const employee of employees) {
-        totalSalary += employee.salary || BigInt(0);
-      }
-    } catch (findError) {
-      console.error("Error calculating total salary:", findError);
+    if (existingOrg && existingOrg.totalSalary) {
+      return BigInt(existingOrg.totalSalary);
     }
 
-    return totalSalary;
+    return BigInt(0);
   } catch (error) {
     console.error("Error in calculateTotalSalary:", error);
     return BigInt(0);
@@ -488,6 +539,39 @@ const recalculateOrganizationMetrics = async (
     );
   } catch (error) {
     throw error;
+  }
+};
+
+const updateOrganizationTotalSalary = async (
+  organization: string,
+  context: any,
+  event: any,
+  salaryChange?: bigint,
+  isNewEmployee?: boolean
+) => {
+  try {
+    const existingOrg = await context.db.find(OrganizationList, {
+      id: organization,
+    });
+
+    if (!existingOrg) {
+      return;
+    }
+
+    if (salaryChange !== undefined) {
+      const currentTotal = existingOrg.totalSalary || BigInt(0);
+      const newTotal = isNewEmployee
+        ? currentTotal + salaryChange
+        : salaryChange;
+
+      await context.db.update(OrganizationList, { id: organization }).set({
+        totalSalary: newTotal,
+        lastUpdated: event.block.timestamp,
+        lastTransaction: event.transaction.hash,
+      });
+    }
+  } catch (error) {
+    console.error("Error updating organization total salary:", error);
   }
 };
 
