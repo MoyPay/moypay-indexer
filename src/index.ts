@@ -18,6 +18,13 @@ import {
   OrganizationJoinedList,
 } from "ponder:schema";
 
+const PERIOD_TIMES = {
+  DAILY: 86400,
+  WEEKLY: 604800,
+  MONTHLY: 2592000,
+  YEARLY: 31536000,
+} as const;
+
 const handleEvent = async (table: any, event: any, context: any, extraValues = {}) => {
   const randomValue = randomBytes(16).toString("hex");
   const id = createHash("sha256")
@@ -32,7 +39,37 @@ const handleEvent = async (table: any, event: any, context: any, extraValues = {
   });
 };
 
+const calculateUnclaimedSalary = async (organization: string, employee: string, context: any, event: any) => {
+  try {
+    const employeeId = `${organization}-${employee}`;
+    const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
+    
+    if (!existingEmployee || !existingEmployee.status) {
+      return BigInt(0);
+    }
+
+    const orgData = await context.db.find(OrganizationList, { id: organization });
+    if (!orgData) {
+      return BigInt(0);
+    }
+
+    const periodTimeSeconds = orgData.periodTime ? Number(orgData.periodTime) : PERIOD_TIMES.MONTHLY;
+    
+    const lastUpdateTime = existingEmployee.lastSalaryUpdated || existingEmployee.createdAt;
+    const currentTime = event.block.timestamp;
+    const timeElapsed = currentTime - lastUpdateTime;
+    
+    const salaryPerSecond = existingEmployee.salary / BigInt(periodTimeSeconds);
+    const unclaimedAmount = salaryPerSecond * BigInt(timeElapsed);
+    
+    return unclaimedAmount;
+  } catch (error) {
+    return BigInt(0);
+  }
+};
+
 const updateEmployeeList = async (organization: string, employee: string, data: any, context: any, event: any) => {
+  const lastUpdateFields: any = {};
   const employeeId = `${organization}-${employee}`;
 
   try {
@@ -41,9 +78,25 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
     if (existingEmployee) {
       const wasActive = existingEmployee.status;
 
+      if (data.status !== undefined) {
+        lastUpdateFields.lastStatusUpdated = event.block.timestamp;
+        
+        if (wasActive && !data.status) {
+          const unclaimedSalary = await calculateUnclaimedSalary(organization, employee, context, event);
+          lastUpdateFields.lastCompensationSalary = unclaimedSalary;
+        }
+        else if (!wasActive && data.status) {
+          lastUpdateFields.lastCompensationSalary = BigInt(0);
+        }
+      }
+      if (data.salary !== undefined) {
+        lastUpdateFields.lastSalaryUpdated = event.block.timestamp;
+      }
+
       await context.db.update(EmployeeList, { id: employeeId }).set({
         lastUpdated: event.block.timestamp,
         lastTransaction: event.transaction.hash,
+        ...lastUpdateFields,
         ...data,
       });
 
@@ -354,6 +407,20 @@ ponder.on("Organization:Withdraw", async ({ event, context }) => {
       startStream: event.args.startStream,
     });
 
+    const employeeId = `${event.log.address}-${event.args.employee}`;
+    const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
+    if (existingEmployee && existingEmployee.lastCompensationSalary) {
+      const remainingCompensation = existingEmployee.lastCompensationSalary > event.args.amount 
+        ? existingEmployee.lastCompensationSalary - event.args.amount 
+        : BigInt(0);
+      
+      await context.db.update(EmployeeList, { id: employeeId }).set({
+        lastCompensationSalary: remainingCompensation,
+        lastUpdated: Number(event.block.timestamp),
+        lastTransaction: event.transaction.hash,
+      });
+    }
+
     const existing = await context.db.find(OrganizationList, { id: event.log.address });
     if (existing) {
       const newTotalWithdrawals = (existing.totalWithdrawals || BigInt(0)) + event.args.amount;
@@ -379,6 +446,16 @@ ponder.on("Organization:WithdrawAll", async ({ event, context }) => {
       isOfframp: event.args.isOfframp,
       startStream: event.args.startStream,
     });
+
+    const employeeId = `${event.log.address}-${event.args.employee}`;
+    const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
+    if (existingEmployee) {
+      await context.db.update(EmployeeList, { id: employeeId }).set({
+        lastCompensationSalary: BigInt(0),
+        lastUpdated: Number(event.block.timestamp),
+        lastTransaction: event.transaction.hash,
+      });
+    }
 
     const existing = await context.db.find(OrganizationList, { id: event.log.address });
     if (existing) {
