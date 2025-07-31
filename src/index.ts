@@ -39,32 +39,91 @@ const handleEvent = async (table: any, event: any, context: any, extraValues = {
   });
 };
 
-const calculateUnclaimedSalary = async (organization: string, employee: string, context: any, event: any) => {
+const calculateCurrentSalaryBalance = async (organization: string, employee: string, context: any, event: any) => {
   try {
     const employeeId = `${organization}-${employee}`;
     const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
     
-    if (!existingEmployee || !existingEmployee.status) {
-      return BigInt(0);
+    if (!existingEmployee || !existingEmployee.status || !existingEmployee.streamingActive) {
+      return {
+        currentBalance: BigInt(0),
+        salaryPerSecond: BigInt(0),
+        timeElapsed: 0,
+        totalEarned: existingEmployee?.totalEarned || BigInt(0)
+      };
     }
 
     const orgData = await context.db.find(OrganizationList, { id: organization });
     if (!orgData) {
-      return BigInt(0);
+      return {
+        currentBalance: BigInt(0),
+        salaryPerSecond: BigInt(0),
+        timeElapsed: 0,
+        totalEarned: existingEmployee.totalEarned || BigInt(0)
+      };
     }
 
     const periodTimeSeconds = orgData.periodTime ? Number(orgData.periodTime) : PERIOD_TIMES.MONTHLY;
-    
-    const lastUpdateTime = existingEmployee.lastSalaryUpdated || existingEmployee.createdAt;
-    const currentTime = event.block.timestamp;
-    const timeElapsed = currentTime - lastUpdateTime;
-    
     const salaryPerSecond = existingEmployee.salary / BigInt(periodTimeSeconds);
-    const unclaimedAmount = salaryPerSecond * BigInt(timeElapsed);
     
-    return unclaimedAmount;
+    const lastBalanceUpdate = existingEmployee.lastBalanceUpdate || existingEmployee.salaryStreamStartTime || existingEmployee.createdAt;
+    const currentTime = event.block.timestamp;
+    const timeElapsed = currentTime - lastBalanceUpdate;
+    
+    // Calculate new earnings since last update
+    const newEarnings = salaryPerSecond * BigInt(timeElapsed);
+    const previousBalance = existingEmployee.currentSalaryBalance || BigInt(0);
+    const currentBalance = previousBalance + newEarnings;
+    const totalEarned = (existingEmployee.totalEarned || BigInt(0)) + newEarnings;
+    
+    return {
+      currentBalance,
+      salaryPerSecond,
+      timeElapsed,
+      totalEarned
+    };
+  } catch (error) {
+    return {
+      currentBalance: BigInt(0),
+      salaryPerSecond: BigInt(0),
+      timeElapsed: 0,
+      totalEarned: BigInt(0)
+    };
+  }
+};
+
+const calculateUnclaimedSalary = async (organization: string, employee: string, context: any, event: any) => {
+  try {
+    const balanceData = await calculateCurrentSalaryBalance(organization, employee, context, event);
+    return balanceData.currentBalance;
   } catch (error) {
     return BigInt(0);
+  }
+};
+
+const updateEmployeeSalaryBalance = async (organization: string, employee: string, context: any, event: any) => {
+  try {
+    const balanceData = await calculateCurrentSalaryBalance(organization, employee, context, event);
+    const employeeId = `${organization}-${employee}`;
+    const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
+    
+    if (existingEmployee) {
+      const totalWithdrawn = existingEmployee.totalWithdrawn || BigInt(0);
+      const availableBalance = balanceData.currentBalance - totalWithdrawn;
+      
+      await context.db.update(EmployeeList, { id: employeeId }).set({
+        currentSalaryBalance: balanceData.currentBalance,
+        salaryBalanceTimestamp: event.block.timestamp,
+        salaryPerSecond: balanceData.salaryPerSecond,
+        totalEarned: balanceData.totalEarned,
+        availableBalance: availableBalance > BigInt(0) ? availableBalance : BigInt(0),
+        lastBalanceUpdate: event.block.timestamp,
+        lastUpdated: event.block.timestamp,
+        lastTransaction: event.transaction.hash,
+      });
+    }
+  } catch (error) {
+    console.error('Error updating employee salary balance:', error);
   }
 };
 
@@ -74,24 +133,52 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
 
   try {
     const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
+    
+    // Get organization data for period time calculation
+    const orgData = await context.db.find(OrganizationList, { id: organization });
+    const periodTimeSeconds = orgData?.periodTime ? Number(orgData.periodTime) : PERIOD_TIMES.MONTHLY;
 
     if (existingEmployee) {
       const wasActive = existingEmployee.status;
+      const wasStreamingActive = existingEmployee.streamingActive;
+      
+      // Update salary balance before making changes
+      if (existingEmployee.streamingActive) {
+        await updateEmployeeSalaryBalance(organization, employee, context, event);
+      }
 
       if (data.status !== undefined) {
         lastUpdateFields.lastStatusUpdated = event.block.timestamp;
-        lastUpdateFields.lastSalaryUpdated = event.block.timestamp;
+        lastUpdateFields.streamingActive = data.status;
         
         if (wasActive && !data.status) {
-          const unclaimedSalary = await calculateUnclaimedSalary(organization, employee, context, event);
-          lastUpdateFields.lastCompensationSalary = unclaimedSalary;
-        }
-        else if (!wasActive && data.status) {
+          // Employee deactivated - auto-withdraw remaining balance, reset to 0
+          const balanceData = await calculateCurrentSalaryBalance(organization, employee, context, event);
+          lastUpdateFields.lastCompensationSalary = balanceData.currentBalance;
+          lastUpdateFields.streamingActive = false;
+          // Reset balance to 0 after auto-withdrawal
+          lastUpdateFields.currentSalaryBalance = BigInt(0);
+          lastUpdateFields.totalWithdrawn = (existingEmployee.totalWithdrawn || BigInt(0)) + balanceData.currentBalance;
+          lastUpdateFields.availableBalance = BigInt(0);
+          lastUpdateFields.lastBalanceUpdate = event.block.timestamp;
+        } else if (!wasActive && data.status) {
+          // Employee reactivated - restart streaming from 0
           lastUpdateFields.lastCompensationSalary = BigInt(0);
+          lastUpdateFields.streamingActive = true;
+          lastUpdateFields.salaryStreamStartTime = event.block.timestamp;
+          lastUpdateFields.currentSalaryBalance = BigInt(0);
+          lastUpdateFields.availableBalance = BigInt(0);
+          lastUpdateFields.lastBalanceUpdate = event.block.timestamp;
         }
       }
+      
       if (data.salary !== undefined) {
         lastUpdateFields.lastSalaryUpdated = event.block.timestamp;
+        // Recalculate salary per second when salary changes
+        lastUpdateFields.salaryPerSecond = data.salary / BigInt(periodTimeSeconds);
+        // Reset streaming start time when salary changes
+        lastUpdateFields.salaryStreamStartTime = event.block.timestamp;
+        lastUpdateFields.lastBalanceUpdate = event.block.timestamp;
       }
 
       await context.db.update(EmployeeList, { id: employeeId }).set({
@@ -111,6 +198,11 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
         }
       }
     } else {
+      // Create new employee with initial salary balance tracking
+      const salary = data.salary || BigInt(0);
+      const salaryPerSecond = salary / BigInt(periodTimeSeconds);
+      const isActive = data.status !== undefined ? data.status : true;
+      
       const newEmployeeData = {
         id: employeeId,
         organization: organization,
@@ -121,6 +213,15 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
         createdAt: event.block.timestamp,
         lastUpdated: event.block.timestamp,
         lastTransaction: event.transaction.hash,
+        currentSalaryBalance: BigInt(0),
+        salaryBalanceTimestamp: event.block.timestamp,
+        salaryStreamStartTime: event.block.timestamp,
+        salaryPerSecond: salaryPerSecond,
+        totalEarned: BigInt(0),
+        totalWithdrawn: BigInt(0),
+        availableBalance: BigInt(0),
+        lastBalanceUpdate: event.block.timestamp,
+        streamingActive: isActive,
         ...data,
       };
 
@@ -128,8 +229,7 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
 
       await incrementOrganizationCounter(organization, 'totalEmployees', context, event);
 
-      const finalStatus = data.status !== undefined ? data.status : true;
-      if (finalStatus) {
+      if (isActive) {
         await incrementOrganizationCounter(organization, 'activeEmployees', context, event);
       }
     }
@@ -410,13 +510,29 @@ ponder.on("Organization:Withdraw", async ({ event, context }) => {
 
     const employeeId = `${event.log.address}-${event.args.employee}`;
     const existingEmployee = await context.db.find(EmployeeList, { id: employeeId });
-    if (existingEmployee && existingEmployee.lastCompensationSalary) {
-      const remainingCompensation = existingEmployee.lastCompensationSalary > event.args.amount 
+    
+    if (existingEmployee) {
+      // Update salary balance before processing withdrawal
+      if (existingEmployee.streamingActive) {
+        await updateEmployeeSalaryBalance(event.log.address, event.args.employee, context, event);
+      }
+      
+      // Update withdrawal tracking
+      const newTotalWithdrawn = (existingEmployee.totalWithdrawn || BigInt(0)) + event.args.amount;
+      const updatedCurrentBalance = (existingEmployee.currentSalaryBalance || BigInt(0));
+      const newAvailableBalance = updatedCurrentBalance - newTotalWithdrawn;
+      
+      // Handle legacy compensation salary tracking
+      const remainingCompensation = existingEmployee.lastCompensationSalary && existingEmployee.lastCompensationSalary > event.args.amount 
         ? existingEmployee.lastCompensationSalary - event.args.amount 
         : BigInt(0);
       
       await context.db.update(EmployeeList, { id: employeeId }).set({
+        totalWithdrawn: newTotalWithdrawn,
+        availableBalance: newAvailableBalance > BigInt(0) ? newAvailableBalance : BigInt(0),
         lastCompensationSalary: remainingCompensation,
+        salaryBalanceTimestamp: Number(event.block.timestamp),
+        lastBalanceUpdate: Number(event.block.timestamp),
         lastUpdated: Number(event.block.timestamp),
         lastTransaction: event.transaction.hash,
       });
