@@ -73,6 +73,7 @@ export const Withdraw = onchainTable("Withdraw", (t) => ({
   organization: t.text(),
   employee: t.text(),
   amount: t.bigint(),
+  unrealizedSalary: t.bigint(),
   isOfframp: t.boolean(),
   startStream: t.bigint(),
   blockNumber: t.integer(),
@@ -87,6 +88,16 @@ export const WithdrawAll = onchainTable("WithdrawAll", (t) => ({
   amount: t.bigint(),
   isOfframp: t.boolean(),
   startStream: t.bigint(),
+  blockNumber: t.integer(),
+  blockTimestamp: t.integer(),
+  transactionHash: t.text(),
+}));
+
+export const WithdrawBalanceOrganization = onchainTable("WithdrawBalanceOrganization", (t) => ({
+  id: t.text().primaryKey(),
+  organization: t.text(),
+  amount: t.bigint(),
+  isOfframp: t.boolean(),
   blockNumber: t.integer(),
   blockTimestamp: t.integer(),
   transactionHash: t.text(),
@@ -136,7 +147,7 @@ export const EmployeeList = onchainTable("EmployeeList", (t) => ({
   organization: t.text(),
   employee: t.text(),
   name: t.text(),
-  salary: t.bigint(), // Base salary amount per period
+  salary: t.bigint(),
   status: t.boolean(),
   createdAt: t.integer(),
   lastUpdated: t.integer(),
@@ -144,16 +155,15 @@ export const EmployeeList = onchainTable("EmployeeList", (t) => ({
   lastStatusUpdated: t.integer(),
   lastSalaryUpdated: t.integer(),
   lastCompensationSalary: t.bigint(),
-  // New salary balance and timestamp tracking entities
-  currentSalaryBalance: t.bigint(), // Real-time accumulated salary balance
-  salaryBalanceTimestamp: t.integer(), // Timestamp when balance was last calculated
-  salaryStreamStartTime: t.integer(), // When salary streaming started
-  salaryPerSecond: t.bigint(), // Calculated salary per second for streaming
-  totalEarned: t.bigint(), // Total salary earned to date
-  totalWithdrawn: t.bigint(), // Total salary withdrawn to date
-  availableBalance: t.bigint(), // currentSalaryBalance - totalWithdrawn
-  lastBalanceUpdate: t.integer(), // Last time balance was recalculated
-  streamingActive: t.boolean(), // Whether salary streaming is currently active
+  currentSalaryBalance: t.bigint(),
+  salaryBalanceTimestamp: t.integer(),
+  salaryStreamStartTime: t.integer(),
+  salaryPerSecond: t.bigint(),
+  totalEarned: t.bigint(),
+  totalWithdrawn: t.bigint(),
+  availableBalance: t.bigint(),
+  lastBalanceUpdate: t.integer(),
+  streamingActive: t.boolean(),
 }));
 
 export const OrganizationList = onchainTable("OrganizationList", (t) => ({

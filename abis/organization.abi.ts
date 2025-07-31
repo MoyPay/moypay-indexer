@@ -310,6 +310,12 @@ export const OrganizationABI = [
       },
       {
         "indexed": false,
+        "internalType": "uint256",
+        "name": "unrealizedSalary",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
         "internalType": "bool",
         "name": "isOfframp",
         "type": "bool"
@@ -353,6 +359,25 @@ export const OrganizationABI = [
       }
     ],
     "name": "WithdrawAll",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "isOfframp",
+        "type": "bool"
+      }
+    ],
+    "name": "WithdrawBalanceOrganization",
     "type": "event"
   },
   {
@@ -764,6 +789,24 @@ export const OrganizationABI = [
       }
     ],
     "name": "withdrawAll",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "isOfframp",
+        "type": "bool"
+      }
+    ],
+    "name": "withdrawBalanceOrganization",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

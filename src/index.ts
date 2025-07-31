@@ -9,6 +9,7 @@ import {
   Deposit,
   Withdraw,
   WithdrawAll,
+  WithdrawBalanceOrganization,
   EnableAutoEarn,
   DisableAutoEarn,
   PeriodTimeSet,
@@ -504,6 +505,7 @@ ponder.on("Organization:Withdraw", async ({ event, context }) => {
       organization: event.log.address,
       employee: event.args.employee,
       amount: event.args.amount,
+      unrealizedSalary: event.args.unrealizedSalary,
       isOfframp: event.args.isOfframp,
       startStream: event.args.startStream,
     });
@@ -679,6 +681,31 @@ ponder.on("Organization:DisableAutoEarn", async ({ event, context }) => {
       employee: event.args.employee,
       protocol: event.args.protocol,
     });
+  } catch (error) {
+    throw error;
+  }
+});
+
+ponder.on("Organization:WithdrawBalanceOrganization", async ({ event, context }) => {
+  try {
+    await handleEvent(WithdrawBalanceOrganization, event, context, {
+      organization: event.log.address,
+      amount: event.args.amount,
+      isOfframp: event.args.isOfframp,
+    });
+
+    // Update organization balance tracking
+    const existing = await context.db.find(OrganizationList, { id: event.log.address });
+    if (existing) {
+      const newTotalWithdrawals = (existing.totalWithdrawals || BigInt(0)) + event.args.amount;
+      await updateOrganizationList(event.log.address, {
+        totalWithdrawals: newTotalWithdrawals,
+      }, context, event);
+    }
+
+    await incrementOrganizationCounter(event.log.address, 'countWithdraws', context, event);
+
+    await recalculateOrganizationMetrics(event.log.address, context, event);
   } catch (error) {
     throw error;
   }
