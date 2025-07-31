@@ -635,6 +635,30 @@ const updateOrganizationJoinedList = async (
   }
 };
 
+const updateAllEmployeesJoinedList = async (
+  organization: string,
+  context: any,
+  event: any
+) => {
+  try {
+    const employees = await context.db
+      .select()
+      .from(EmployeeList)
+      .where("organization", "=", organization);
+
+    for (const employee of employees) {
+      await updateOrganizationJoinedList(
+        employee.employee,
+        organization,
+        context,
+        event
+      );
+    }
+  } catch (error) {
+    console.error("Error updating all employees joined list:", error);
+  }
+};
+
 ponder.on("Factory:OrganizationCreated", async ({ event, context }) => {
   try {
     await handleEvent(OrganizationCreated, event, context, {
@@ -651,6 +675,13 @@ ponder.on("Factory:OrganizationCreated", async ({ event, context }) => {
         name: event.args.name,
         token: event.args.token,
       },
+      context,
+      event
+    );
+
+    await updateOrganizationJoinedList(
+      event.args.owner,
+      event.args.organization,
       context,
       event
     );
@@ -867,6 +898,8 @@ ponder.on("Organization:Deposit", async ({ event, context }) => {
     );
 
     await recalculateOrganizationMetrics(event.log.address, context, event);
+
+    await updateAllEmployeesJoinedList(event.log.address, context, event);
   } catch (error) {
     throw error;
   }
@@ -948,6 +981,13 @@ ponder.on("Organization:Withdraw", async ({ event, context }) => {
     );
 
     await recalculateOrganizationMetrics(event.log.address, context, event);
+
+    await updateOrganizationJoinedList(
+      event.args.employee,
+      event.log.address,
+      context,
+      event
+    );
   } catch (error) {
     throw error;
   }
@@ -1022,6 +1062,13 @@ ponder.on("Organization:WithdrawAll", async ({ event, context }) => {
     );
 
     await recalculateOrganizationMetrics(event.log.address, context, event);
+
+    await updateOrganizationJoinedList(
+      event.args.employee,
+      event.log.address,
+      context,
+      event
+    );
   } catch (error) {
     throw error;
   }
@@ -1122,6 +1169,8 @@ ponder.on("Organization:PeriodTimeSet", async ({ event, context }) => {
     );
 
     await recalculateOrganizationMetrics(event.log.address, context, event);
+
+    await updateAllEmployeesJoinedList(event.log.address, context, event);
   } catch (error) {
     throw error;
   }
@@ -1142,6 +1191,8 @@ ponder.on("Organization:SetName", async ({ event, context }) => {
       context,
       event
     );
+
+    await updateAllEmployeesJoinedList(event.log.address, context, event);
   } catch (error) {
     throw error;
   }
@@ -1244,6 +1295,8 @@ ponder.on(
       );
 
       await recalculateOrganizationMetrics(event.log.address, context, event);
+
+      await updateAllEmployeesJoinedList(event.log.address, context, event);
     } catch (error) {
       throw error;
     }
