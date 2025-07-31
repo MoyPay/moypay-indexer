@@ -1,6 +1,6 @@
 import { onchainTable } from "ponder";
 
-export const OrganizationCreated = onchainTable("OrganizationCreated", (t) => ({
+export const OrganizationCreated = onchainTable("OrganizationCreated", t => ({
   id: t.text().primaryKey(),
   owner: t.text(),
   organization: t.text(),
@@ -11,7 +11,7 @@ export const OrganizationCreated = onchainTable("OrganizationCreated", (t) => ({
   transactionHash: t.text(),
 }));
 
-export const EarnSalary = onchainTable("EarnSalary", (t) => ({
+export const EarnSalary = onchainTable("EarnSalary", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   employee: t.text(),
@@ -23,7 +23,7 @@ export const EarnSalary = onchainTable("EarnSalary", (t) => ({
   transactionHash: t.text(),
 }));
 
-export const EmployeeSalaryAdded = onchainTable("EmployeeSalaryAdded", (t) => ({
+export const EmployeeSalaryAdded = onchainTable("EmployeeSalaryAdded", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   name: t.text(),
@@ -37,7 +37,7 @@ export const EmployeeSalaryAdded = onchainTable("EmployeeSalaryAdded", (t) => ({
   transactionHash: t.text(),
 }));
 
-export const EmployeeSalarySet = onchainTable("EmployeeSalarySet", (t) => ({
+export const EmployeeSalarySet = onchainTable("EmployeeSalarySet", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   employee: t.text(),
@@ -48,17 +48,20 @@ export const EmployeeSalarySet = onchainTable("EmployeeSalarySet", (t) => ({
   transactionHash: t.text(),
 }));
 
-export const EmployeeStatusChanged = onchainTable("EmployeeStatusChanged", (t) => ({
-  id: t.text().primaryKey(),
-  organization: t.text(),
-  employee: t.text(),
-  status: t.boolean(),
-  blockNumber: t.integer(),
-  blockTimestamp: t.integer(),
-  transactionHash: t.text(),
-}));
+export const EmployeeStatusChanged = onchainTable(
+  "EmployeeStatusChanged",
+  t => ({
+    id: t.text().primaryKey(),
+    organization: t.text(),
+    employee: t.text(),
+    status: t.boolean(),
+    blockNumber: t.integer(),
+    blockTimestamp: t.integer(),
+    transactionHash: t.text(),
+  })
+);
 
-export const Deposit = onchainTable("Deposit", (t) => ({
+export const Deposit = onchainTable("Deposit", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   owner: t.text(),
@@ -68,7 +71,7 @@ export const Deposit = onchainTable("Deposit", (t) => ({
   transactionHash: t.text(),
 }));
 
-export const Withdraw = onchainTable("Withdraw", (t) => ({
+export const Withdraw = onchainTable("Withdraw", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   employee: t.text(),
@@ -81,7 +84,7 @@ export const Withdraw = onchainTable("Withdraw", (t) => ({
   transactionHash: t.text(),
 }));
 
-export const WithdrawAll = onchainTable("WithdrawAll", (t) => ({
+export const WithdrawAll = onchainTable("WithdrawAll", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   employee: t.text(),
@@ -93,38 +96,41 @@ export const WithdrawAll = onchainTable("WithdrawAll", (t) => ({
   transactionHash: t.text(),
 }));
 
-export const WithdrawBalanceOrganization = onchainTable("WithdrawBalanceOrganization", (t) => ({
-  id: t.text().primaryKey(),
-  organization: t.text(),
-  amount: t.bigint(),
-  isOfframp: t.boolean(),
-  blockNumber: t.integer(),
-  blockTimestamp: t.integer(),
-  transactionHash: t.text(),
-}));
+export const WithdrawBalanceOrganization = onchainTable(
+  "WithdrawBalanceOrganization",
+  t => ({
+    id: t.text().primaryKey(),
+    organization: t.text(),
+    amount: t.bigint(),
+    isOfframp: t.boolean(),
+    blockNumber: t.integer(),
+    blockTimestamp: t.integer(),
+    transactionHash: t.text(),
+  })
+);
 
-export const EnableAutoEarn = onchainTable("EnableAutoEarn", (t) => ({
-  id: t.text().primaryKey(),
-  organization: t.text(),
-  employee: t.text(),
-  protocol: t.text(),
-  amount: t.bigint(),
-  blockNumber: t.integer(),
-  blockTimestamp: t.integer(),
-  transactionHash: t.text(),
-}));
-
-export const DisableAutoEarn = onchainTable("DisableAutoEarn", (t) => ({
+export const EnableAutoEarn = onchainTable("EnableAutoEarn", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   employee: t.text(),
   protocol: t.text(),
+  amount: t.bigint(),
   blockNumber: t.integer(),
   blockTimestamp: t.integer(),
   transactionHash: t.text(),
 }));
 
-export const PeriodTimeSet = onchainTable("PeriodTimeSet", (t) => ({
+export const DisableAutoEarn = onchainTable("DisableAutoEarn", t => ({
+  id: t.text().primaryKey(),
+  organization: t.text(),
+  employee: t.text(),
+  protocol: t.text(),
+  blockNumber: t.integer(),
+  blockTimestamp: t.integer(),
+  transactionHash: t.text(),
+}));
+
+export const PeriodTimeSet = onchainTable("PeriodTimeSet", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   periodTime: t.bigint(),
@@ -133,7 +139,7 @@ export const PeriodTimeSet = onchainTable("PeriodTimeSet", (t) => ({
   transactionHash: t.text(),
 }));
 
-export const SetName = onchainTable("SetName", (t) => ({
+export const SetName = onchainTable("SetName", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   name: t.text(),
@@ -142,7 +148,7 @@ export const SetName = onchainTable("SetName", (t) => ({
   transactionHash: t.text(),
 }));
 
-export const EmployeeList = onchainTable("EmployeeList", (t) => ({
+export const EmployeeList = onchainTable("EmployeeList", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   employee: t.text(),
@@ -164,9 +170,10 @@ export const EmployeeList = onchainTable("EmployeeList", (t) => ({
   availableBalance: t.bigint(),
   lastBalanceUpdate: t.integer(),
   streamingActive: t.boolean(),
+  unrealizedSalary: t.bigint(),
 }));
 
-export const OrganizationList = onchainTable("OrganizationList", (t) => ({
+export const OrganizationList = onchainTable("OrganizationList", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
   name: t.text(),
@@ -187,24 +194,27 @@ export const OrganizationList = onchainTable("OrganizationList", (t) => ({
   lastTransaction: t.text(),
 }));
 
-export const OrganizationJoinedList = onchainTable("OrganizationJoinedList", (t) => ({
-  id: t.text().primaryKey(),
-  employee: t.text(),
-  organization: t.text(),
-  name: t.text(),
-  owner: t.text(),
-  token: t.text(),
-  periodTime: t.bigint(),
-  totalEmployees: t.integer(),
-  activeEmployees: t.integer(),
-  totalDeposits: t.bigint(),
-  totalWithdrawals: t.bigint(),
-  countDeposits: t.integer(),
-  countWithdraws: t.integer(),
-  totalSalary: t.bigint(),
-  currentBalance: t.bigint(),
-  shortfall: t.bigint(),
-  createdAt: t.integer(),
-  lastUpdated: t.integer(),
-  lastTransaction: t.text(),
-}));
+export const OrganizationJoinedList = onchainTable(
+  "OrganizationJoinedList",
+  t => ({
+    id: t.text().primaryKey(),
+    employee: t.text(),
+    organization: t.text(),
+    name: t.text(),
+    owner: t.text(),
+    token: t.text(),
+    periodTime: t.bigint(),
+    totalEmployees: t.integer(),
+    activeEmployees: t.integer(),
+    totalDeposits: t.bigint(),
+    totalWithdrawals: t.bigint(),
+    countDeposits: t.integer(),
+    countWithdraws: t.integer(),
+    totalSalary: t.bigint(),
+    currentBalance: t.bigint(),
+    shortfall: t.bigint(),
+    createdAt: t.integer(),
+    lastUpdated: t.integer(),
+    lastTransaction: t.text(),
+  })
+);

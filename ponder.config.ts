@@ -37,7 +37,9 @@ export default createConfig({
       abi: OrganizationABI,
       address: factory({
         address: "0x85F4C33FAF0B40c0Bb24e669d74603FB886B7613",
-        event: FactoryABI.find(item => item.type === "event" && item.name === "OrganizationCreated")!,
+        event: FactoryABI.find(
+          item => item.type === "event" && item.name === "OrganizationCreated"
+        )!,
         parameter: "organization",
       }),
       startBlock: 20843795,

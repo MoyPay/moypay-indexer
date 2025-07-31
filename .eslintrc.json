@@ -1,3 +1,8 @@
 {
-  "extends": "ponder"
+  "extends": ["ponder", "prettier"],
+  "rules": {
+    "@typescript-eslint/no-unused-vars": "error",
+    "@typescript-eslint/no-explicit-any": "warn"
+  },
+  "ignorePatterns": ["node_modules/", "dist/", "build/", "generated/"]
 }
