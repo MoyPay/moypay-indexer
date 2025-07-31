@@ -80,6 +80,7 @@ const updateEmployeeList = async (organization: string, employee: string, data: 
 
       if (data.status !== undefined) {
         lastUpdateFields.lastStatusUpdated = event.block.timestamp;
+        lastUpdateFields.lastSalaryUpdated = event.block.timestamp;
         
         if (wasActive && !data.status) {
           const unclaimedSalary = await calculateUnclaimedSalary(organization, employee, context, event);
