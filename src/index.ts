@@ -14,6 +14,7 @@ import {
   DisableAutoEarn,
   PeriodTimeSet,
   SetName,
+  SetEmployeeName,
   EmployeeList,
   EmployeeAutoEarn,
   OrganizationList,
@@ -1402,3 +1403,39 @@ ponder.on(
     }
   }
 );
+
+ponder.on("Organization:SetEmployeeName", async ({ event, context }) => {
+  try {
+    await handleEvent(SetEmployeeName, event, context, {
+      organization: event.log.address,
+      employee: event.args.employee,
+      name: event.args.name,
+    });
+
+    const employeeId = `${event.log.address}-${event.args.employee}`;
+    const existingEmployee = await context.db.find(EmployeeList, {
+      id: employeeId,
+    });
+
+    if (existingEmployee) {
+      await updateEmployeeList(
+        event.log.address,
+        event.args.employee,
+        {
+          name: event.args.name,
+        },
+        context,
+        event
+      );
+    }
+
+    await updateOrganizationJoinedList(
+      event.args.employee,
+      event.log.address,
+      context,
+      event
+    );
+  } catch (error) {
+    throw error;
+  }
+});

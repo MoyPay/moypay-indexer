@@ -148,6 +148,16 @@ export const SetName = onchainTable("SetName", t => ({
   transactionHash: t.text(),
 }));
 
+export const SetEmployeeName = onchainTable("SetEmployeeName", t => ({
+  id: t.text().primaryKey(),
+  organization: t.text(),
+  employee: t.text(),
+  name: t.text(),
+  blockNumber: t.integer(),
+  blockTimestamp: t.integer(),
+  transactionHash: t.text(),
+}));
+
 export const EmployeeList = onchainTable("EmployeeList", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),
