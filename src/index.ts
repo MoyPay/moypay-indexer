@@ -742,6 +742,76 @@ ponder.on("Organization:EarnSalary", async ({ event, context }) => {
       amount: event.args.amount,
       shares: event.args.shares,
     });
+
+    const employeeId = `${event.log.address}-${event.args.employee}`;
+    const existingEmployee = await context.db.find(EmployeeList, {
+      id: employeeId,
+    });
+
+    if (existingEmployee) {
+      if (existingEmployee.streamingActive) {
+        await updateEmployeeSalaryBalance(
+          event.log.address,
+          event.args.employee,
+          context,
+          event
+        );
+      }
+
+      const updatedEmployee = await context.db.find(EmployeeList, {
+        id: employeeId,
+      });
+
+      if (updatedEmployee) {
+        const currentBalance =
+          updatedEmployee.currentSalaryBalance || BigInt(0);
+        const earnAmount = event.args.amount;
+
+        const newCurrentBalance = currentBalance - earnAmount;
+        const newTotalWithdrawn =
+          (updatedEmployee.totalWithdrawn || BigInt(0)) + earnAmount;
+
+        const newAvailableBalance =
+          newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0);
+        const newUnrealizedSalary =
+          newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0);
+
+        await context.db.update(EmployeeList, { id: employeeId }).set({
+          currentSalaryBalance:
+            newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0),
+          totalWithdrawn: newTotalWithdrawn,
+          availableBalance: newAvailableBalance,
+          unrealizedSalary: newUnrealizedSalary,
+          salaryStreamStartTime: Number(event.block.timestamp),
+          lastBalanceUpdate: Number(event.block.timestamp),
+          lastUpdated: Number(event.block.timestamp),
+          lastTransaction: event.transaction.hash,
+        });
+
+        const existingOrg = await context.db.find(OrganizationList, {
+          id: event.log.address,
+        });
+
+        if (existingOrg) {
+          const newOrgTotalWithdrawals =
+            (existingOrg.totalWithdrawals || BigInt(0)) + earnAmount;
+          await context.db
+            .update(OrganizationList, { id: event.log.address })
+            .set({
+              totalWithdrawals: newOrgTotalWithdrawals,
+              lastUpdated: Number(event.block.timestamp),
+              lastTransaction: event.transaction.hash,
+            });
+        }
+      }
+    }
+
+    await updateOrganizationJoinedList(
+      event.args.employee,
+      event.log.address,
+      context,
+      event
+    );
   } catch (error) {
     throw error;
   }
@@ -1298,62 +1368,11 @@ ponder.on("Organization:EnableAutoEarn", async ({ event, context }) => {
     });
 
     if (existingEmployee) {
-      if (existingEmployee.streamingActive) {
-        await updateEmployeeSalaryBalance(
-          event.log.address,
-          event.args.employee,
-          context,
-          event
-        );
-      }
-
-      const updatedEmployee = await context.db.find(EmployeeList, {
-        id: employeeId,
+      await context.db.update(EmployeeList, { id: employeeId }).set({
+        autoEarnStatus: true,
+        lastUpdated: Number(event.block.timestamp),
+        lastTransaction: event.transaction.hash,
       });
-
-      if (updatedEmployee) {
-        const currentBalance =
-          updatedEmployee.currentSalaryBalance || BigInt(0);
-        const investmentAmount = event.args.amount;
-
-        const newCurrentBalance = currentBalance - investmentAmount;
-        const newTotalWithdrawn =
-          (updatedEmployee.totalWithdrawn || BigInt(0)) + investmentAmount;
-
-        const newAvailableBalance =
-          newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0);
-
-        const newUnrealizedSalary =
-          newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0);
-
-        await context.db.update(EmployeeList, { id: employeeId }).set({
-          autoEarnStatus: true,
-          currentSalaryBalance:
-            newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0),
-          totalWithdrawn: newTotalWithdrawn,
-          availableBalance: newAvailableBalance,
-          unrealizedSalary: newUnrealizedSalary,
-          lastBalanceUpdate: Number(event.block.timestamp),
-          lastUpdated: Number(event.block.timestamp),
-          lastTransaction: event.transaction.hash,
-        });
-
-        const existingOrg = await context.db.find(OrganizationList, {
-          id: event.log.address,
-        });
-
-        if (existingOrg) {
-          const newOrgTotalWithdrawals =
-            (existingOrg.totalWithdrawals || BigInt(0)) + investmentAmount;
-          await context.db
-            .update(OrganizationList, { id: event.log.address })
-            .set({
-              totalWithdrawals: newOrgTotalWithdrawals,
-              lastUpdated: Number(event.block.timestamp),
-              lastTransaction: event.transaction.hash,
-            });
-        }
-      }
     }
 
     await updateEmployeeAutoEarn(
@@ -1370,8 +1389,6 @@ ponder.on("Organization:EnableAutoEarn", async ({ event, context }) => {
       context,
       event
     );
-
-    await recalculateOrganizationMetrics(event.log.address, context, event);
 
     await updateOrganizationJoinedList(
       event.args.employee,
