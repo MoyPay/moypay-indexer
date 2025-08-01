@@ -1312,18 +1312,27 @@ ponder.on("Organization:EnableAutoEarn", async ({ event, context }) => {
       });
 
       if (updatedEmployee) {
-        const currentBalance = updatedEmployee.currentSalaryBalance || BigInt(0);
+        const currentBalance =
+          updatedEmployee.currentSalaryBalance || BigInt(0);
         const investmentAmount = event.args.amount;
-        
+
         const newCurrentBalance = currentBalance - investmentAmount;
-        const newTotalWithdrawn = (updatedEmployee.totalWithdrawn || BigInt(0)) + investmentAmount;
-        const newAvailableBalance = newCurrentBalance - (updatedEmployee.totalWithdrawn || BigInt(0));
+        const newTotalWithdrawn =
+          (updatedEmployee.totalWithdrawn || BigInt(0)) + investmentAmount;
+
+        const newAvailableBalance =
+          newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0);
+
+        const newUnrealizedSalary =
+          newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0);
 
         await context.db.update(EmployeeList, { id: employeeId }).set({
           autoEarnStatus: true,
-          currentSalaryBalance: newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0),
+          currentSalaryBalance:
+            newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0),
           totalWithdrawn: newTotalWithdrawn,
-          availableBalance: newAvailableBalance > BigInt(0) ? newAvailableBalance : BigInt(0),
+          availableBalance: newAvailableBalance,
+          unrealizedSalary: newUnrealizedSalary,
           lastBalanceUpdate: Number(event.block.timestamp),
           lastUpdated: Number(event.block.timestamp),
           lastTransaction: event.transaction.hash,
@@ -1334,12 +1343,15 @@ ponder.on("Organization:EnableAutoEarn", async ({ event, context }) => {
         });
 
         if (existingOrg) {
-          const newOrgTotalWithdrawals = (existingOrg.totalWithdrawals || BigInt(0)) + investmentAmount;
-          await context.db.update(OrganizationList, { id: event.log.address }).set({
-            totalWithdrawals: newOrgTotalWithdrawals,
-            lastUpdated: Number(event.block.timestamp),
-            lastTransaction: event.transaction.hash,
-          });
+          const newOrgTotalWithdrawals =
+            (existingOrg.totalWithdrawals || BigInt(0)) + investmentAmount;
+          await context.db
+            .update(OrganizationList, { id: event.log.address })
+            .set({
+              totalWithdrawals: newOrgTotalWithdrawals,
+              lastUpdated: Number(event.block.timestamp),
+              lastTransaction: event.transaction.hash,
+            });
         }
       }
     }
