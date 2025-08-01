@@ -1298,11 +1298,50 @@ ponder.on("Organization:EnableAutoEarn", async ({ event, context }) => {
     });
 
     if (existingEmployee) {
-      await context.db.update(EmployeeList, { id: employeeId }).set({
-        autoEarnStatus: true,
-        lastUpdated: Number(event.block.timestamp),
-        lastTransaction: event.transaction.hash,
+      if (existingEmployee.streamingActive) {
+        await updateEmployeeSalaryBalance(
+          event.log.address,
+          event.args.employee,
+          context,
+          event
+        );
+      }
+
+      const updatedEmployee = await context.db.find(EmployeeList, {
+        id: employeeId,
       });
+
+      if (updatedEmployee) {
+        const currentBalance = updatedEmployee.currentSalaryBalance || BigInt(0);
+        const investmentAmount = event.args.amount;
+        
+        const newCurrentBalance = currentBalance - investmentAmount;
+        const newTotalWithdrawn = (updatedEmployee.totalWithdrawn || BigInt(0)) + investmentAmount;
+        const newAvailableBalance = newCurrentBalance - (updatedEmployee.totalWithdrawn || BigInt(0));
+
+        await context.db.update(EmployeeList, { id: employeeId }).set({
+          autoEarnStatus: true,
+          currentSalaryBalance: newCurrentBalance > BigInt(0) ? newCurrentBalance : BigInt(0),
+          totalWithdrawn: newTotalWithdrawn,
+          availableBalance: newAvailableBalance > BigInt(0) ? newAvailableBalance : BigInt(0),
+          lastBalanceUpdate: Number(event.block.timestamp),
+          lastUpdated: Number(event.block.timestamp),
+          lastTransaction: event.transaction.hash,
+        });
+
+        const existingOrg = await context.db.find(OrganizationList, {
+          id: event.log.address,
+        });
+
+        if (existingOrg) {
+          const newOrgTotalWithdrawals = (existingOrg.totalWithdrawals || BigInt(0)) + investmentAmount;
+          await context.db.update(OrganizationList, { id: event.log.address }).set({
+            totalWithdrawals: newOrgTotalWithdrawals,
+            lastUpdated: Number(event.block.timestamp),
+            lastTransaction: event.transaction.hash,
+          });
+        }
+      }
     }
 
     await updateEmployeeAutoEarn(
@@ -1316,6 +1355,15 @@ ponder.on("Organization:EnableAutoEarn", async ({ event, context }) => {
         disabledAt: 0,
         isActive: true,
       },
+      context,
+      event
+    );
+
+    await recalculateOrganizationMetrics(event.log.address, context, event);
+
+    await updateOrganizationJoinedList(
+      event.args.employee,
+      event.log.address,
       context,
       event
     );
