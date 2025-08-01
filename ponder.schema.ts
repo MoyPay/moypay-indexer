@@ -174,6 +174,26 @@ export const EmployeeList = onchainTable("EmployeeList", t => ({
   autoEarnStatus: t.boolean(),
 }));
 
+export const EmployeeAutoEarn = onchainTable("EmployeeAutoEarn", t => ({
+  id: t.text().primaryKey(),
+  organization: t.text(),
+  employee: t.text(),
+  protocol: t.text(),
+  autoEarnAmount: t.bigint(),
+  isAutoEarn: t.boolean(),
+  totalShares: t.bigint(),
+  totalEarned: t.bigint(),
+  totalWithdrawn: t.bigint(),
+  createdAt: t.integer(),
+  lastUpdated: t.integer(),
+  lastTransaction: t.text(),
+  enabledAt: t.integer(),
+  disabledAt: t.integer().notNull().default(0),
+  isActive: t.boolean(),
+  blockNumber: t.integer(),
+  blockTimestamp: t.integer(),
+}));
+
 export const OrganizationList = onchainTable("OrganizationList", t => ({
   id: t.text().primaryKey(),
   organization: t.text(),

@@ -62,6 +62,11 @@ export const OrganizationABI = [
   },
   {
     "inputs": [],
+    "name": "PeriodTimeInvalid",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ReentrancyGuardReentrantCall",
     "type": "error"
   },

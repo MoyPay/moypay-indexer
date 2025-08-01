@@ -15,6 +15,7 @@ import {
   PeriodTimeSet,
   SetName,
   EmployeeList,
+  EmployeeAutoEarn,
   OrganizationList,
   OrganizationJoinedList,
 } from "ponder:schema";
@@ -657,6 +658,56 @@ const updateAllEmployeesJoinedList = async (
   }
 };
 
+const updateEmployeeAutoEarn = async (
+  organization: string,
+  employee: string,
+  protocol: string,
+  data: any,
+  context: any,
+  event: any
+) => {
+  try {
+    const autoEarnId = `${organization}-${employee}-${protocol}`;
+    const existing = await context.db.find(EmployeeAutoEarn, {
+      id: autoEarnId,
+    });
+
+    if (existing) {
+      await context.db.update(EmployeeAutoEarn, { id: autoEarnId }).set({
+        lastUpdated: Number(event.block.timestamp),
+        lastTransaction: event.transaction.hash,
+        blockNumber: event.block.number,
+        blockTimestamp: Number(event.block.timestamp),
+        ...data,
+      });
+    } else {
+      await context.db.insert(EmployeeAutoEarn).values({
+        id: autoEarnId,
+        organization: organization,
+        employee: employee,
+        protocol: protocol,
+        autoEarnAmount: BigInt(0),
+        isAutoEarn: false,
+        totalShares: BigInt(0),
+        totalEarned: BigInt(0),
+        totalWithdrawn: BigInt(0),
+        createdAt: Number(event.block.timestamp),
+        lastUpdated: Number(event.block.timestamp),
+        lastTransaction: event.transaction.hash,
+        enabledAt: 0,
+        disabledAt: 0,
+        isActive: false,
+        blockNumber: event.block.number,
+        blockTimestamp: Number(event.block.timestamp),
+        ...data,
+      });
+    }
+  } catch (error) {
+    console.error("Error updating employee auto earn:", error);
+    throw error;
+  }
+};
+
 ponder.on("Factory:OrganizationCreated", async ({ event, context }) => {
   try {
     await handleEvent(OrganizationCreated, event, context, {
@@ -673,13 +724,6 @@ ponder.on("Factory:OrganizationCreated", async ({ event, context }) => {
         name: event.args.name,
         token: event.args.token,
       },
-      context,
-      event
-    );
-
-    await updateOrganizationJoinedList(
-      event.args.owner,
-      event.args.organization,
       context,
       event
     );
@@ -1259,6 +1303,21 @@ ponder.on("Organization:EnableAutoEarn", async ({ event, context }) => {
         lastTransaction: event.transaction.hash,
       });
     }
+
+    await updateEmployeeAutoEarn(
+      event.log.address,
+      event.args.employee,
+      event.args.protocol,
+      {
+        autoEarnAmount: event.args.amount,
+        isAutoEarn: true,
+        enabledAt: Number(event.block.timestamp),
+        disabledAt: 0,
+        isActive: true,
+      },
+      context,
+      event
+    );
   } catch (error) {
     throw error;
   }
@@ -1284,6 +1343,19 @@ ponder.on("Organization:DisableAutoEarn", async ({ event, context }) => {
         lastTransaction: event.transaction.hash,
       });
     }
+
+    await updateEmployeeAutoEarn(
+      event.log.address,
+      event.args.employee,
+      event.args.protocol,
+      {
+        isAutoEarn: false,
+        disabledAt: Number(event.block.timestamp),
+        isActive: false,
+      },
+      context,
+      event
+    );
   } catch (error) {
     throw error;
   }
