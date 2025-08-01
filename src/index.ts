@@ -641,14 +641,11 @@ const updateAllEmployeesJoinedList = async (
   event: any
 ) => {
   try {
-    const employees = await context.db
-      .select()
-      .from(EmployeeList)
-      .where("organization", "=", organization);
+    const employeeAddresses = getOrganizationEmployees(organization);
 
-    for (const employee of employees) {
+    for (const employeeAddress of employeeAddresses) {
       await updateOrganizationJoinedList(
-        employee.employee,
+        employeeAddress,
         organization,
         context,
         event
@@ -762,6 +759,8 @@ ponder.on("Organization:EmployeeSalarySet", async ({ event, context }) => {
       }
     }
 
+    addEmployeeToOrganization(event.log.address, event.args.employee);
+
     await updateEmployeeList(
       event.log.address,
       event.args.employee,
@@ -845,6 +844,8 @@ ponder.on("Organization:EmployeeStatusChanged", async ({ event, context }) => {
         }
       }
     }
+
+    addEmployeeToOrganization(event.log.address, event.args.employee);
 
     await updateEmployeeList(
       event.log.address,
