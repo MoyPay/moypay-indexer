@@ -171,6 +171,7 @@ export const EmployeeList = onchainTable("EmployeeList", t => ({
   lastBalanceUpdate: t.integer(),
   streamingActive: t.boolean(),
   unrealizedSalary: t.bigint(),
+  autoEarnStatus: t.boolean(),
 }));
 
 export const OrganizationList = onchainTable("OrganizationList", t => ({

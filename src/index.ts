@@ -332,6 +332,7 @@ const updateEmployeeList = async (
         lastBalanceUpdate: event.block.timestamp,
         streamingActive: isActive,
         unrealizedSalary: BigInt(0),
+        autoEarnStatus: false,
         ...data,
       };
 
@@ -1245,6 +1246,19 @@ ponder.on("Organization:EnableAutoEarn", async ({ event, context }) => {
       protocol: event.args.protocol,
       amount: event.args.amount,
     });
+
+    const employeeId = `${event.log.address}-${event.args.employee}`;
+    const existingEmployee = await context.db.find(EmployeeList, {
+      id: employeeId,
+    });
+
+    if (existingEmployee) {
+      await context.db.update(EmployeeList, { id: employeeId }).set({
+        autoEarnStatus: true,
+        lastUpdated: Number(event.block.timestamp),
+        lastTransaction: event.transaction.hash,
+      });
+    }
   } catch (error) {
     throw error;
   }
@@ -1257,6 +1271,19 @@ ponder.on("Organization:DisableAutoEarn", async ({ event, context }) => {
       employee: event.args.employee,
       protocol: event.args.protocol,
     });
+
+    const employeeId = `${event.log.address}-${event.args.employee}`;
+    const existingEmployee = await context.db.find(EmployeeList, {
+      id: employeeId,
+    });
+
+    if (existingEmployee) {
+      await context.db.update(EmployeeList, { id: employeeId }).set({
+        autoEarnStatus: false,
+        lastUpdated: Number(event.block.timestamp),
+        lastTransaction: event.transaction.hash,
+      });
+    }
   } catch (error) {
     throw error;
   }
