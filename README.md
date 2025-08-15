@@ -217,7 +217,7 @@ query GetEmployee($id: String!) {
 ## 🌐 Network Configuration
 
 **Core Testnet**
-- Chain ID: 1115
+- Chain ID: 1114
 - RPC Endpoints: 
   - Primary: `https://rpc.ankr.com/core_testnet`
   - Fallback: `https://node.ghostnet.core.com`

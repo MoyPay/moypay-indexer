@@ -10,7 +10,7 @@ export default createConfig({
   // },
   networks: {
     coreTestnet: {
-      chainId: 1115,
+      chainId: 1114,
       transport: fallback([
         http(process.env.PONDER_RPC_URL_1, {
           retryCount: 2,
