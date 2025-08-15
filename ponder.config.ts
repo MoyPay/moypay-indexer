@@ -30,7 +30,7 @@ export default createConfig({
       network: "coreTestnet",
       abi: FactoryABI,
       address: "0x287C0fd28AB921f4f05Eb8326b809Ac2F9A817aa",
-      startBlock: 20862743,
+      startBlock: 7346994,
     },
     Organization: {
       network: "coreTestnet",
@@ -42,7 +42,7 @@ export default createConfig({
         )!,
         parameter: "organization",
       }),
-      startBlock: 20862743,
+      startBlock: 7346994,
     },
   },
 });
