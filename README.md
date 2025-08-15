@@ -2,7 +2,7 @@
 
 ![Ponder Logo](./public/logo-ponder.png)
 
-A sophisticated blockchain indexing system built with [Ponder](https://ponder.sh) that tracks real-time salary streaming and DeFi yield farming for organizations on the Etherlink testnet. This indexer provides comprehensive tracking of payroll operations, employee management, and automated earning protocols.
+A sophisticated blockchain indexing system built with [Ponder](https://ponder.sh) that tracks real-time salary streaming and DeFi yield farming for organizations on the Core testnet. This indexer provides comprehensive tracking of payroll operations, employee management, and automated earning protocols.
 
 ## 🚀 Features
 
@@ -66,8 +66,8 @@ The indexer tracks multiple entities:
    
    Configure your environment variables:
    ```env
-   PONDER_RPC_URL_1=https://rpc.ankr.com/etherlink_testnet
-   PONDER_RPC_URL_2=https://node.ghostnet.etherlink.com
+   PONDER_RPC_URL_1=https://rpc.ankr.com/core_testnet
+   PONDER_RPC_URL_2=https://node.ghostnet.core.com
    PONDER_LOG_LEVEL=info
    
    # Optional: PostgreSQL database
@@ -216,11 +216,11 @@ query GetEmployee($id: String!) {
 
 ## 🌐 Network Configuration
 
-**Etherlink Testnet**
-- Chain ID: 128123
+**Core Testnet**
+- Chain ID: 1115
 - RPC Endpoints: 
-  - Primary: `https://rpc.ankr.com/etherlink_testnet`
-  - Fallback: `https://node.ghostnet.etherlink.com`
+  - Primary: `https://rpc.ankr.com/core_testnet`
+  - Fallback: `https://node.ghostnet.core.com`
 - Start Block: 20,862,743
 - Polling Interval: 2 seconds
 - Rate Limit: 3 requests/second
@@ -264,11 +264,11 @@ The indexer provides comprehensive logging and can be monitored through:
 
 ## 📝 License
 
-This project is part of a hackathon submission for Etherlink ecosystem development.
+This project is part of a hackathon submission for Core ecosystem development.
 
 ## 🔗 Related Links
 
 - [Ponder Documentation](https://ponder.sh)
-- [Etherlink Documentation](https://docs.etherlink.com)
+- [Core Documentation](https://docs.core.com)
 - [GraphQL Documentation](https://graphql.org)
 

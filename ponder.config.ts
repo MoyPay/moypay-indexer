@@ -9,8 +9,8 @@ export default createConfig({
   //   connectionString: process.env.PONDER_DATABASE_URL,
   // },
   networks: {
-    etherlinkTestnet: {
-      chainId: 128123,
+    coreTestnet: {
+      chainId: 1115,
       transport: fallback([
         http(process.env.PONDER_RPC_URL_1, {
           retryCount: 2,
@@ -27,16 +27,16 @@ export default createConfig({
   },
   contracts: {
     Factory: {
-      network: "etherlinkTestnet",
+      network: "coreTestnet",
       abi: FactoryABI,
-      address: "0x565Da780F19E7034887a2aD0200295eA42a85998",
+      address: "0x287C0fd28AB921f4f05Eb8326b809Ac2F9A817aa",
       startBlock: 20862743,
     },
     Organization: {
-      network: "etherlinkTestnet",
+      network: "coreTestnet",
       abi: OrganizationABI,
       address: factory({
-        address: "0x565Da780F19E7034887a2aD0200295eA42a85998",
+        address: "0x287C0fd28AB921f4f05Eb8326b809Ac2F9A817aa",
         event: FactoryABI.find(
           item => item.type === "event" && item.name === "OrganizationCreated"
         )!,
